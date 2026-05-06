@@ -145,6 +145,7 @@ export class Camera {
         e.preventDefault();
       }
     }, { passive: false });
+  }
 
   /** Per-frame update — handle WASD pan */
   update(dtSec: number): void {
