@@ -38,7 +38,9 @@ export class BaseRenderer {
       for (const offset of camera.tileOffsets(base.x)) {
         const bx = base.x + offset;
 
+        g.moveTo(bx + r, base.y);
         g.circle(bx, base.y, r).stroke({ color, width: 50 });
+        g.moveTo(bx + r * 0.85, base.y);
         g.circle(bx, base.y, r * 0.85).stroke({ color, alpha: 0.4, width: 30 });
 
         const barW = r * 2;

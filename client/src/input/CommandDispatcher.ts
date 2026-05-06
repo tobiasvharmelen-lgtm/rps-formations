@@ -1,6 +1,6 @@
 import {
   PlayerId, InputType, UnitType, Tier, BuildingType,
-  MERGE_COUNT, MERGE_RADIUS, SPAWN_COST_T1, BARRIER_BREAK_COST,
+  MERGE_COUNT, MERGE_RADIUS, SPAWN_COST_T1,
 } from "shared";
 import { SelectionManager } from "./SelectionManager.js";
 import { InputBackend } from "./InputBackend.js";
@@ -45,16 +45,6 @@ export class CommandDispatcher {
     if (ids.length === 0) return false;
 
     this.backend.send({ type: InputType.MoveUnits, unitIds: ids, destX, destY });
-    return true;
-  }
-
-  openMiddle(): boolean {
-    const state = this.backend.getState();
-    if (!state) return false;
-    if (state.barrierOpen) return false;
-    const player = state.players[this.backend.playerId - 1];
-    if (player.resources < BARRIER_BREAK_COST) return false;
-    this.backend.send({ type: InputType.OpenMiddle });
     return true;
   }
 

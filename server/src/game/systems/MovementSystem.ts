@@ -1,5 +1,5 @@
-import { GameState, ZoneOwner, ZoneType } from "shared";
-import { UNIT_SPEED, UNIT_RADIUS, MAP_WIDTH, MAP_HEIGHT, WAR_ZONE_DEPTH, BARRIER_MIDDLE_X_MIN, BARRIER_MIDDLE_X_MAX, LANE_SPEED_BUFF, getStat } from "shared";
+import { GameState } from "shared";
+import { UNIT_SPEED, UNIT_RADIUS, MAP_WIDTH, MAP_HEIGHT, VERT_BARRIER_XS, LANE_GAP_HEIGHT, getStat } from "shared";
 import { SpatialHash } from "../SpatialHash.js";
 
 function wrappedDx(ax: number, bx: number): number {
@@ -34,18 +34,7 @@ export function tickMovement(state: GameState, spatialHash: SpatialHash): void {
       continue;
     }
 
-    // ---- Lane polarity speed buff ----
     let effectiveSpeed = speed;
-    if (!state.barrierOpen) {
-      const inTopLane = unit.y < MAP_HEIGHT / 2;
-      const laneZoneType = inTopLane ? ZoneType.TopMid : ZoneType.BottomMid;
-      const laneZone = state.zones.find(z => z.type === laneZoneType);
-      const laneOwner = inTopLane ? ZoneOwner.Player1 : ZoneOwner.Player2;
-      if (laneZone && laneZone.owner !== ZoneOwner.Neutral) {
-        const beneficiary = laneZone.owner === ZoneOwner.Player1 ? 1 : 2;
-        if (unit.owner === beneficiary) effectiveSpeed *= LANE_SPEED_BUFF;
-      }
-    }
     // Apply slowing from PaperGrass terrain (set by TerrainSystem earlier)
     if (unit.slowed) effectiveSpeed *= 0.5;
 
@@ -83,24 +72,27 @@ export function tickMovement(state: GameState, spatialHash: SpatialHash): void {
       vy = (vy / mag) * effectiveSpeed;
     }
 
-    const prevY = unit.y;
+    const prevX = unit.x;
     unit.x += vx;
     unit.y += vy;
 
-    // ---- Barrier collision (horizontal line at MAP_HEIGHT/2) ----
-    // Three segments: two permanent walls + one breakable middle
+    // ---- Barrier collision (4 vertical walls with top/bottom lane gaps) ----
     {
-      const barrierY = MAP_HEIGHT / 2;
-      const ux = unit.x;
-      const inPermanent1 = ux > WAR_ZONE_DEPTH && ux < BARRIER_MIDDLE_X_MIN;
-      const inMiddle     = ux >= BARRIER_MIDDLE_X_MIN && ux <= BARRIER_MIDDLE_X_MAX;
-      const inPermanent2 = ux > BARRIER_MIDDLE_X_MAX && ux < MAP_WIDTH - WAR_ZONE_DEPTH;
-      const wallActive   = inPermanent1 || inPermanent2 || (inMiddle && !state.barrierOpen);
-      if (wallActive && ((prevY < barrierY && unit.y >= barrierY) || (prevY > barrierY && unit.y <= barrierY))) {
-        unit.y = prevY;
-        vy = 0;
-        if (unit.targetY > barrierY && prevY < barrierY) unit.targetY = barrierY - radius;
-        if (unit.targetY < barrierY && prevY > barrierY) unit.targetY = barrierY + radius;
+      const inBlocked = unit.y > LANE_GAP_HEIGHT && unit.y < MAP_HEIGHT - LANE_GAP_HEIGHT;
+      if (inBlocked) {
+        // Normalize prevX to [0, MAP_WIDTH) for crossing detection
+        const px = prevX < 0 ? prevX + MAP_WIDTH : prevX >= MAP_WIDTH ? prevX - MAP_WIDTH : prevX;
+        for (const barrierX of VERT_BARRIER_XS) {
+          const crossRight = px < barrierX && unit.x >= barrierX;
+          const crossLeft  = px > barrierX && unit.x <= barrierX;
+          if (crossRight || crossLeft) {
+            unit.x = prevX;
+            vx = 0;
+            if (crossRight) unit.targetX = barrierX - radius;
+            else            unit.targetX = barrierX + radius;
+            break;
+          }
+        }
       }
     }
 

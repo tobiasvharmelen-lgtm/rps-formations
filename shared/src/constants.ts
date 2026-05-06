@@ -8,7 +8,8 @@ export const COUNTDOWN_TICKS = 3 * TICK_RATE; // 3-second countdown
 // ---- Map ----
 export const MAP_WIDTH = 24_000;       // world-mm
 export const MAP_HEIGHT = 16_000;
-export const WAR_ZONE_DEPTH = 3_500;   // mm — x < WAR_ZONE_DEPTH is P1 war zone, x > MAP_WIDTH-WAR_ZONE_DEPTH is P2
+export const VERT_BARRIER_XS = [3_000, 9_000, 15_000, 21_000] as const; // x positions of vertical walls
+export const LANE_GAP_HEIGHT = 5_000;  // top lane: y < LANE_GAP_HEIGHT; bottom: y > MAP_HEIGHT - LANE_GAP_HEIGHT
 
 // ---- Economy ----
 export const STARTING_RESOURCES = 500; // shared gold pool
@@ -82,11 +83,6 @@ export const ZONE_RADIUS = 1_200;       // world-mm
 export const ZONE_CAPTURE_RATE = 2;     // progress points per tick when units inside
 export const ZONE_FULL = 100;           // |captureProgress| threshold to own a zone
 
-// ---- Barrier & lane ----
-export const BARRIER_BREAK_COST = 80;     // gold to open the middle
-export const BARRIER_MIDDLE_X_MIN = 10_000; // start of breakable middle section
-export const BARRIER_MIDDLE_X_MAX = 14_000; // end of breakable middle section
-export const LANE_SPEED_BUFF = 1.5;       // speed multiplier for units in owned midfield lane
 
 // ---- Buildings ----
 export const BUILDING_STATS: Record<BuildingType, { hp: number; cost: number; conversionRadius: number; incomeBonus?: number }> = {

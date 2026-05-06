@@ -3,8 +3,7 @@ import {
   UnitType, Tier, Unit, ZoneType, BuildingType,
   UNIT_HP, UNIT_RADIUS, STARTING_RESOURCES, BASE_HP,
   ZONE_RADIUS, MAP_WIDTH, MAP_HEIGHT, SPAWN_COST_T1, getStat,
-  MERGE_COUNT, MERGE_RADIUS, WAR_ZONE_DEPTH, BARRIER_BREAK_COST,
-  BUILDING_STATS,
+  MERGE_COUNT, MERGE_RADIUS, BUILDING_STATS,
 } from "shared";
 import { SpatialHash } from "./SpatialHash.js";
 import { tickEconomy } from "./systems/EconomySystem.js";
@@ -48,17 +47,23 @@ function makeInitialState(): GameState {
     ],
     units: [],
     bases: [
-      { owner: PlayerId.One, x: 2_000, y: MAP_HEIGHT / 2, hp: BASE_HP, maxHp: BASE_HP, attackCooldown: 0 },
-      { owner: PlayerId.Two, x: MAP_WIDTH - 2_000, y: MAP_HEIGHT / 2, hp: BASE_HP, maxHp: BASE_HP, attackCooldown: 0 },
+      { owner: PlayerId.One, x: 0,              y: MAP_HEIGHT / 2, hp: BASE_HP, maxHp: BASE_HP, attackCooldown: 0 },
+      { owner: PlayerId.Two, x: MAP_WIDTH / 2,  y: MAP_HEIGHT / 2, hp: BASE_HP, maxHp: BASE_HP, attackCooldown: 0 },
     ],
     zones: [
-      { type: ZoneType.TopMid,    x: MAP_WIDTH / 2, y: MAP_HEIGHT / 4,       radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
-      { type: ZoneType.BottomMid, x: MAP_WIDTH / 2, y: (MAP_HEIGHT * 3) / 4, radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
+      { type: ZoneType.LeftTop,    x: MAP_WIDTH / 4,       y: 2_500,                  radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
+      { type: ZoneType.LeftBottom, x: MAP_WIDTH / 4,       y: MAP_HEIGHT - 2_500,     radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
+      { type: ZoneType.RightTop,   x: (MAP_WIDTH * 3) / 4, y: 2_500,                  radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
+      { type: ZoneType.RightBottom,x: (MAP_WIDTH * 3) / 4, y: MAP_HEIGHT - 2_500,     radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
     ],
     winnerId: 0,
     mergeEvents: [],
-    barrierOpen: false,
-    buildings: [],
+    buildings: [
+      { id: nextMergedUnitId++, owner: PlayerId.Neutral, type: BuildingType.SwapTower, x: MAP_WIDTH / 4,       y: 2_500,              hp: 99_999, maxHp: 99_999, setType: UnitType.Rock, conversionRadius: BUILDING_STATS[BuildingType.SwapTower].conversionRadius },
+      { id: nextMergedUnitId++, owner: PlayerId.Neutral, type: BuildingType.SwapTower, x: MAP_WIDTH / 4,       y: MAP_HEIGHT - 2_500, hp: 99_999, maxHp: 99_999, setType: UnitType.Rock, conversionRadius: BUILDING_STATS[BuildingType.SwapTower].conversionRadius },
+      { id: nextMergedUnitId++, owner: PlayerId.Neutral, type: BuildingType.SwapTower, x: (MAP_WIDTH * 3) / 4, y: 2_500,              hp: 99_999, maxHp: 99_999, setType: UnitType.Rock, conversionRadius: BUILDING_STATS[BuildingType.SwapTower].conversionRadius },
+      { id: nextMergedUnitId++, owner: PlayerId.Neutral, type: BuildingType.SwapTower, x: (MAP_WIDTH * 3) / 4, y: MAP_HEIGHT - 2_500, hp: 99_999, maxHp: 99_999, setType: UnitType.Rock, conversionRadius: BUILDING_STATS[BuildingType.SwapTower].conversionRadius },
+    ],
     terrain: [],
   };
 }
@@ -109,7 +114,6 @@ export class GameSimulation {
       case InputType.SpawnUnit:     this.spawnUnit(playerId, input);     break;
       case InputType.MoveUnits:     this.moveUnits(playerId, input);     break;
       case InputType.MergeUnits:    this.mergeUnits(playerId, input);    break;
-      case InputType.OpenMiddle:    this.openMiddle(playerId);           break;
       case InputType.PlaceBuilding: this.placeBuilding(playerId, input); break;
       case InputType.SetTowerType:  this.setTowerType(playerId, input);  break;
     }
@@ -218,14 +222,6 @@ export class GameSimulation {
     });
   }
 
-  private openMiddle(playerId: PlayerId): void {
-    const player = this.state.players[playerId - 1];
-    if (!this.state.barrierOpen && player.resources >= BARRIER_BREAK_COST) {
-      player.resources -= BARRIER_BREAK_COST;
-      this.state.barrierOpen = true;
-    }
-  }
-
   private placeBuilding(playerId: PlayerId, input: PlayerInput): void {
     const bType = input.buildingType;
     if (bType === undefined) return;
@@ -234,9 +230,6 @@ export class GameSimulation {
     const player = this.state.players[playerId - 1];
     const stats = BUILDING_STATS[bType];
     if (player.resources < stats.cost) return;
-
-    // Reject placement inside either war zone
-    if (x < WAR_ZONE_DEPTH || x > MAP_WIDTH - WAR_ZONE_DEPTH) return;
 
     player.resources -= stats.cost;
     this.state.buildings.push({

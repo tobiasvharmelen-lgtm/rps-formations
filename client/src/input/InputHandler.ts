@@ -175,7 +175,6 @@ export class InputHandler {
     else if (key === "x") this.handleSpawn(UnitType.Paper, e.shiftKey);
     else if (key === "c") this.handleSpawn(UnitType.Scissors, e.shiftKey);
     else if (key === "u") this.dispatcher.upgradeSelected();
-    else if (key === "m") this.dispatcher.openMiddle();
     else if (key === "q") this.placingBuilding = BuildingType.SwapTower;
     else if (key === "e") this.placingBuilding = BuildingType.MirrorGate;
     else if (key === "f") this.placingBuilding = BuildingType.Refinery;

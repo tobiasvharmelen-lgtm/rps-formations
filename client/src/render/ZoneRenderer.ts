@@ -3,8 +3,10 @@ import { Zone, ZoneType, ZoneOwner } from "shared";
 import type { Camera } from "./Camera.js";
 
 const ZONE_COLOR: Record<ZoneType, number> = {
-  [ZoneType.TopMid]:    0xf39c12,
-  [ZoneType.BottomMid]: 0x9b59b6,
+  [ZoneType.LeftTop]:    0xf39c12,
+  [ZoneType.LeftBottom]: 0xf39c12,
+  [ZoneType.RightTop]:   0x9b59b6,
+  [ZoneType.RightBottom]:0x9b59b6,
 };
 
 const OWNER_FILL: Record<ZoneOwner, { color: number; alpha: number }> = {

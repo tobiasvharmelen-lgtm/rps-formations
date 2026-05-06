@@ -90,7 +90,7 @@ export class WorldRenderer {
       for (const u of state.units) this.prevUnits.set(u.id, { ...u });
     }
 
-    this.map.render(state.barrierOpen, cam);
+    this.map.render(false, cam);
     this.terrain.render(state.terrain, cam);
     this.zones.render(state.zones, cam);
     this.bases.render(state.bases, cam);

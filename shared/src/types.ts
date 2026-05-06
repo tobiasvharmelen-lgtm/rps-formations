@@ -13,13 +13,16 @@ export const enum Tier {
 }
 
 export const enum PlayerId {
+  Neutral = 0,
   One = 1,
   Two = 2,
 }
 
 export const enum ZoneType {
-  TopMid = 0,
-  BottomMid = 1,
+  LeftTop    = 0,
+  LeftBottom = 1,
+  RightTop   = 2,
+  RightBottom= 3,
 }
 
 export const enum ZoneOwner {
@@ -39,7 +42,6 @@ export const enum InputType {
   MoveUnits     = 0,
   SpawnUnit     = 3,
   MergeUnits    = 4,
-  OpenMiddle    = 5,
   PlaceBuilding = 6,
   SetTowerType  = 7,
 }
@@ -146,7 +148,6 @@ export interface GameState {
   zones: Zone[];
   winnerId: PlayerId | 0;
   mergeEvents: MergeEvent[];
-  barrierOpen: boolean;
   buildings: Building[];
   terrain: Terrain[];
 }

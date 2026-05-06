@@ -1,4 +1,4 @@
-import { GameState, BuildingType, UnitType } from "shared";
+import { GameState, BuildingType, PlayerId, UnitType } from "shared";
 import { SpatialHash } from "../SpatialHash.js";
 import { MAP_WIDTH } from "shared";
 
@@ -14,8 +14,9 @@ export function tickBuildings(state: GameState, spatialHash: SpatialHash): void 
       if (building.setType === undefined) continue;
       const nearby = spatialHash.queryWrapped(building.x, building.y, building.conversionRadius, MAP_WIDTH);
       for (const uid of nearby) {
-        const u = state.units.find(u => u.id === uid && u.owner === building.owner);
+        const u = state.units.find(u => u.id === uid);
         if (!u) continue;
+        if (building.owner !== PlayerId.Neutral && u.owner !== building.owner) continue;
         u.type = building.setType;
       }
     } else if (building.type === BuildingType.MirrorGate) {

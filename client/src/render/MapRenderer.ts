@@ -1,16 +1,20 @@
 import { Container, Graphics } from "pixi.js";
-import { MAP_WIDTH, MAP_HEIGHT, WAR_ZONE_DEPTH, BARRIER_MIDDLE_X_MIN, BARRIER_MIDDLE_X_MAX } from "shared";
-import type { Camera } from "./Camera.js";
+import { MAP_WIDTH, MAP_HEIGHT, VERT_BARRIER_XS, LANE_GAP_HEIGHT } from "shared";
 
-// Draw this many tile copies in each direction so any zoom level is covered.
 const TILE_RADIUS = 3;
+
+// P1 home: x in [21000, 24000] and [0, 3000] (wraps around seam at 0)
+// P2 home: x in [9000, 15000]
+const P1_HOME_RIGHT_START = VERT_BARRIER_XS[3]; // 21000
+const P2_HOME_START       = VERT_BARRIER_XS[1]; // 9000
+const P2_HOME_END         = VERT_BARRIER_XS[2]; // 15000
+const HOME_ALPHA          = 0.06;
 
 export class MapRenderer {
   container: Container;
   private bgGfx: Graphics;
   private barrierGfx: Graphics;
   private bgDrawn = false;
-  private barrierWasOpen = false;
 
   constructor() {
     this.container = new Container();
@@ -20,15 +24,11 @@ export class MapRenderer {
     this.container.addChild(this.bgGfx, this.barrierGfx);
   }
 
-  render(barrierOpen = false, _camera?: Camera): void {
+  render(_barrierOpen = false, _camera?: Camera): void {
     if (!this.bgDrawn) {
       this.bgDrawn = true;
       this._drawBackground();
-      this._drawBarrier(barrierOpen);
-      this.barrierWasOpen = barrierOpen;
-    } else if (barrierOpen !== this.barrierWasOpen) {
-      this.barrierWasOpen = barrierOpen;
-      this._drawBarrier(barrierOpen);
+      this._drawBarriers();
     }
   }
 
@@ -42,15 +42,16 @@ export class MapRenderer {
       // Map background
       g.rect(ox, 0, MAP_WIDTH, MAP_HEIGHT).fill({ color: 0x16162a });
 
-      // War zone overlays
-      g.rect(ox, 0, WAR_ZONE_DEPTH, MAP_HEIGHT).fill({ color: 0xff0000, alpha: 0.06 });
-      g.rect(ox + MAP_WIDTH - WAR_ZONE_DEPTH, 0, WAR_ZONE_DEPTH, MAP_HEIGHT).fill({ color: 0x0088ff, alpha: 0.06 });
+      // P1 home: right portion of tile (x=21000 to 24000) — red tint
+      g.rect(ox + P1_HOME_RIGHT_START, 0, MAP_WIDTH - P1_HOME_RIGHT_START, MAP_HEIGHT)
+        .fill({ color: 0xe74c3c, alpha: HOME_ALPHA });
+      // P1 home: left portion of tile (x=0 to 3000) — red tint
+      g.rect(ox, 0, VERT_BARRIER_XS[0], MAP_HEIGHT)
+        .fill({ color: 0xe74c3c, alpha: HOME_ALPHA });
 
-      // War zone inner boundary arcs
-      g.arc(ox + 2_000, MAP_HEIGHT / 2, WAR_ZONE_DEPTH - 2_000, -Math.PI / 2, Math.PI / 2)
-        .stroke({ color: 0xff4444, alpha: 0.5, width: 40 });
-      g.arc(ox + MAP_WIDTH - 2_000, MAP_HEIGHT / 2, WAR_ZONE_DEPTH - 2_000, Math.PI / 2, -Math.PI / 2)
-        .stroke({ color: 0x4488ff, alpha: 0.5, width: 40 });
+      // P2 home: x=9000 to 15000 — blue tint
+      g.rect(ox + P2_HOME_START, 0, P2_HOME_END - P2_HOME_START, MAP_HEIGHT)
+        .fill({ color: 0x3498db, alpha: HOME_ALPHA });
 
       // Grid lines every 2000 mm
       const grid = 2000;
@@ -62,43 +63,29 @@ export class MapRenderer {
       }
       g.stroke({ color: 0xffffff, alpha: 0.05, width: 20 });
 
-      // Center vertical divider
-      g.moveTo(ox + MAP_WIDTH / 2, 0).lineTo(ox + MAP_WIDTH / 2, MAP_HEIGHT);
-      g.stroke({ color: 0xffffff, alpha: 0.15, width: 30 });
-
-      // Top + bottom borders only (no left/right — seamless cylinder)
+      // Top + bottom borders
       g.moveTo(ox, 0).lineTo(ox + MAP_WIDTH, 0).stroke({ color: 0x444466, width: 40 });
       g.moveTo(ox, MAP_HEIGHT).lineTo(ox + MAP_WIDTH, MAP_HEIGHT).stroke({ color: 0x444466, width: 40 });
     }
   }
 
-  private _drawBarrier(open: boolean): void {
+  private _drawBarriers(): void {
     const g = this.barrierGfx;
     g.clear();
 
-    const y = MAP_HEIGHT / 2;
+    const y0 = LANE_GAP_HEIGHT;
+    const y1 = MAP_HEIGHT - LANE_GAP_HEIGHT;
 
     for (let n = -TILE_RADIUS; n <= TILE_RADIUS; n++) {
       const ox = n * MAP_WIDTH;
-
-      // Permanent wall 1 (always blocks): WAR_ZONE_DEPTH → BARRIER_MIDDLE_X_MIN
-      g.moveTo(ox + WAR_ZONE_DEPTH, y).lineTo(ox + BARRIER_MIDDLE_X_MIN, y)
-        .stroke({ color: 0xaaaaaa, alpha: 0.85, width: 50 });
-
-      // Permanent wall 2 (always blocks): BARRIER_MIDDLE_X_MAX → MAP_WIDTH - WAR_ZONE_DEPTH
-      g.moveTo(ox + BARRIER_MIDDLE_X_MAX, y).lineTo(ox + MAP_WIDTH - WAR_ZONE_DEPTH, y)
-        .stroke({ color: 0xaaaaaa, alpha: 0.85, width: 50 });
-
-      // Breakable middle section (dashed yellow — only when not open)
-      if (!open) {
-        const midLen = BARRIER_MIDDLE_X_MAX - BARRIER_MIDDLE_X_MIN;
-        const segW = midLen / 5;
-        for (let s = 0; s < 5; s += 2) {
-          const sx = ox + BARRIER_MIDDLE_X_MIN + s * segW;
-          g.moveTo(sx, y).lineTo(sx + segW, y)
-            .stroke({ color: 0xffd700, alpha: 0.9, width: 50 });
-        }
+      for (const barrierX of VERT_BARRIER_XS) {
+        const bx = ox + barrierX;
+        g.moveTo(bx, y0).lineTo(bx, y1)
+          .stroke({ color: 0xaaaaaa, alpha: 0.85, width: 50 });
       }
     }
   }
 }
+
+// Keep Camera import optional — MapRenderer.render() accepts it but doesn't use it
+import type { Camera } from "./Camera.js";

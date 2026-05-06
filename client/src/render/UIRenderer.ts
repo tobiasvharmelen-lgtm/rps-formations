@@ -173,7 +173,7 @@ export class UIRenderer {
 
     this.hintText = new Text({
       text:
-        "WASD/scroll: camera   |   Z/X/C: spawn   |   U: fuse   |   M: open middle (80g)   |   " +
+        "WASD/scroll: camera   |   Z/X/C: spawn   |   U: fuse   |   " +
         "Q: SwapTower (60g)   |   E: MirrorGate (120g)   |   F: Refinery (100g)   →   right-click to place" +
         "   |   right-click tower to cycle type",
       style: { fill: 0x888888, fontSize: 11, fontFamily: "monospace" },
@@ -223,8 +223,7 @@ export class UIRenderer {
     this.hudP1.container.position.set(16, 16);
     this.hudP2.container.position.set(sw - 216, 16);
 
-    const barrierStr = state.barrierOpen ? "MID: OPEN" : "MID: CLOSED";
-    this.statsText.text = `Tick: ${state.tick}   Units: ${state.units.length}   ${barrierStr}`;
+    this.statsText.text = `Tick: ${state.tick}   Units: ${state.units.length}`;
     this.statsText.position.set(sw / 2 - this.statsText.width / 2, 20);
 
     this.placingText.position.set(sw / 2 - this.placingText.width / 2, 60);
