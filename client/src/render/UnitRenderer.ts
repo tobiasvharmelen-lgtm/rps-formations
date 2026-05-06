@@ -1,5 +1,6 @@
 import { Container, Graphics } from "pixi.js";
 import { Unit, UnitType, Tier, PlayerId, UNIT_RADIUS, getStat } from "shared";
+import type { Camera } from "./Camera.js";
 
 const UNIT_FILL: Record<UnitType, number> = {
   [UnitType.Rock]:     0xe74c3c,
@@ -13,157 +14,89 @@ const UNIT_STROKE: Record<UnitType, number> = {
   [UnitType.Scissors]: 0x27ae60,
 };
 
-class UnitView {
-  container: Container;
-  body: Graphics;
-  hpBar: Graphics;
-  /** Last damage frame — used for hit flash */
-  flashTicks = 0;
-  /** Cached HP fraction so we only redraw HP bar when it changes */
-  lastHpFrac = -1;
-  lastTier: Tier | -1 = -1;
-
-  constructor() {
-    this.container = new Container();
-    this.body = new Graphics();
-    this.hpBar = new Graphics();
-    this.container.addChild(this.body, this.hpBar);
-  }
-
-  setVisible(v: boolean): void { this.container.visible = v; }
+interface UnitState {
+  flashTicks: number;
+  prevHp: number;
 }
 
-/**
- * UnitRenderer maintains a pool of UnitView objects keyed by unit ID.
- * Views are reused across ticks; dead units' views are returned to a free pool.
- */
 export class UnitRenderer {
   container: Container;
-  private views = new Map<number, UnitView>();
-  private freePool: UnitView[] = [];
-  private prevHp = new Map<number, number>();
+  private gfx = new Graphics();
+  private unitState = new Map<number, UnitState>();
 
   constructor() {
     this.container = new Container();
     this.container.label = "units";
+    this.container.addChild(this.gfx);
   }
 
-  render(units: Unit[]): void {
+  render(units: Unit[], camera: Camera): void {
+    const g = this.gfx;
+    g.clear();
+
     const seen = new Set<number>();
 
     for (const unit of units) {
       seen.add(unit.id);
-      let view = this.views.get(unit.id);
 
-      if (!view) {
-        view = this.acquireView();
-        this.views.set(unit.id, view);
-        this.drawBody(view, unit);
+      let st = this.unitState.get(unit.id);
+      if (!st) {
+        st = { flashTicks: 0, prevHp: unit.hp };
+        this.unitState.set(unit.id, st);
       }
 
-      // Detect HP drop → trigger flash
-      const lastHp = this.prevHp.get(unit.id);
-      if (lastHp !== undefined && unit.hp < lastHp) {
-        view.flashTicks = 6;
-      }
-      this.prevHp.set(unit.id, unit.hp);
+      if (unit.hp < st.prevHp) st.flashTicks = 6;
+      st.prevHp = unit.hp;
 
-      // Re-draw body if tier changed (e.g., merge)
-      if (view.lastTier !== unit.tier) {
-        this.drawBody(view, unit);
-        view.lastTier = unit.tier;
-      }
+      const flash = st.flashTicks > 0;
+      if (flash) st.flashTicks--;
 
-      view.container.position.set(unit.x, unit.y);
-
-      // Hit flash
-      if (view.flashTicks > 0) {
-        view.body.tint = 0xffffff;
-        view.flashTicks--;
-      } else {
-        view.body.tint = 0xffffff;
-        // Apply slight tint for player 2 (faded)
-        if (unit.owner === PlayerId.Two) view.body.alpha = 0.85;
-        else view.body.alpha = 1.0;
-      }
-
-      // HP bar (re-draw only when fraction changed)
-      const frac = unit.hp / unit.maxHp;
-      if (Math.abs(frac - view.lastHpFrac) > 0.01) {
-        view.lastHpFrac = frac;
-        this.drawHpBar(view, unit, frac);
+      for (const offset of camera.tileOffsets(unit.x)) {
+        this.drawUnit(g, unit, unit.x + offset, unit.y, flash);
       }
     }
 
-    // Recycle views for units that disappeared (death)
-    for (const [id, view] of this.views) {
-      if (!seen.has(id)) {
-        this.releaseView(view);
-        this.views.delete(id);
-        this.prevHp.delete(id);
-      }
+    for (const id of this.unitState.keys()) {
+      if (!seen.has(id)) this.unitState.delete(id);
     }
   }
 
-  private drawBody(view: UnitView, unit: Unit): void {
+  private drawUnit(g: Graphics, unit: Unit, x: number, y: number, flash: boolean): void {
     const r = getStat(UNIT_RADIUS, unit.type, unit.tier);
-    const fill = UNIT_FILL[unit.type];
+    const fill = flash ? 0xffffff : UNIT_FILL[unit.type];
     const stroke = UNIT_STROKE[unit.type];
-    const isP1 = unit.owner === PlayerId.One;
-    const strokeWidth = isP1 ? 24 : 16;
-
-    const g = view.body;
-    g.clear();
+    const strokeWidth = unit.owner === PlayerId.One ? 24 : 16;
+    const alpha = unit.owner === PlayerId.Two ? 0.85 : 1.0;
 
     switch (unit.type) {
       case UnitType.Rock:
-        g.circle(0, 0, r).fill({ color: fill }).stroke({ color: stroke, width: strokeWidth });
+        g.circle(x, y, r).fill({ color: fill, alpha }).stroke({ color: stroke, width: strokeWidth });
         break;
       case UnitType.Paper:
-        g.rect(-r, -r, r * 2, r * 2).fill({ color: fill }).stroke({ color: stroke, width: strokeWidth });
+        g.rect(x - r, y - r, r * 2, r * 2).fill({ color: fill, alpha }).stroke({ color: stroke, width: strokeWidth });
         break;
       case UnitType.Scissors: {
         const cos30 = Math.cos(Math.PI / 6);
-        g.moveTo(0, -r).lineTo(r * cos30, r * 0.5).lineTo(-r * cos30, r * 0.5).closePath()
-          .fill({ color: fill }).stroke({ color: stroke, width: strokeWidth });
+        g.moveTo(x, y - r).lineTo(x + r * cos30, y + r * 0.5).lineTo(x - r * cos30, y + r * 0.5).closePath()
+          .fill({ color: fill, alpha }).stroke({ color: stroke, width: strokeWidth });
         break;
       }
     }
 
-    // Tier dots above the unit
-    if (unit.tier > 0) {
+    // Tier dots
+    if (unit.tier > Tier.Small) {
       for (let t = 0; t <= unit.tier; t++) {
-        g.circle(-r * 0.6 + t * (r * 0.4), -r - r * 0.3, r * 0.12).fill({ color: 0xffffff });
+        g.circle(x - r * 0.6 + t * (r * 0.4), y - r - r * 0.3, r * 0.12).fill({ color: 0xffffff });
       }
     }
-  }
 
-  private drawHpBar(view: UnitView, unit: Unit, frac: number): void {
-    const r = getStat(UNIT_RADIUS, unit.type, unit.tier);
+    // HP bar
+    const frac = unit.hp / unit.maxHp;
     const barW = r * 2;
     const barH = Math.max(8, r * 0.12);
-    const barY = r + r * 0.2;
-
-    const g = view.hpBar;
-    g.clear();
-    g.rect(-r, barY, barW, barH).fill({ color: 0x222244 });
-    const color = frac > 0.5 ? 0x2ecc71 : frac > 0.25 ? 0xf39c12 : 0xe74c3c;
-    g.rect(-r, barY, barW * frac, barH).fill({ color });
-  }
-
-  private acquireView(): UnitView {
-    const v = this.freePool.pop() ?? new UnitView();
-    v.setVisible(true);
-    v.flashTicks = 0;
-    v.lastHpFrac = -1;
-    v.lastTier = -1;
-    this.container.addChild(v.container);
-    return v;
-  }
-
-  private releaseView(view: UnitView): void {
-    view.setVisible(false);
-    this.container.removeChild(view.container);
-    this.freePool.push(view);
+    const barY = y + r + r * 0.2;
+    g.rect(x - r, barY, barW, barH).fill({ color: 0x222244 });
+    const hpColor = frac > 0.5 ? 0x2ecc71 : frac > 0.25 ? 0xf39c12 : 0xe74c3c;
+    g.rect(x - r, barY, barW * frac, barH).fill({ color: hpColor });
   }
 }

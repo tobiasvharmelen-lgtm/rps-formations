@@ -167,12 +167,30 @@ export class Camera {
   }
 
   private clamp(): void {
-    const sw = this.screenW();
     const sh = this.screenH();
-    const halfW = sw / 2 / this.zoom;
     const halfH = sh / 2 / this.zoom;
-    this.x = Math.max(halfW * 0.3, Math.min(MAP_WIDTH - halfW * 0.3, this.x));
+    // x is unclamped — horizontal scrolling is infinite (cylinder map)
     this.y = Math.max(halfH * 0.3, Math.min(MAP_HEIGHT - halfH * 0.3, this.y));
+  }
+
+  /** Visible world-x range [left, right] */
+  viewBoundsX(): [number, number] {
+    const halfW = this.screenW() / 2 / this.zoom;
+    return [this.x - halfW, this.x + halfW];
+  }
+
+  /**
+   * Returns the n*MAP_WIDTH offsets such that objX+offset is visible.
+   * An object at game position objX ∈ [0, MAP_WIDTH] may need to be drawn
+   * at several x positions to fill the cylinder viewport.
+   */
+  tileOffsets(objX: number): number[] {
+    const [left, right] = this.viewBoundsX();
+    const nMin = Math.floor((left - objX) / MAP_WIDTH);
+    const nMax = Math.ceil((right - objX) / MAP_WIDTH);
+    const offsets: number[] = [];
+    for (let n = nMin; n <= nMax; n++) offsets.push(n * MAP_WIDTH);
+    return offsets;
   }
 
   private applyTransform(): void {
@@ -188,6 +206,15 @@ export class Camera {
     return {
       x: (sx - sw / 2) / this.zoom + this.x,
       y: (sy - sh / 2) / this.zoom + this.y,
+    };
+  }
+
+  /** Like screenToWorld but wraps x into [0, MAP_WIDTH] for game-logic use. */
+  screenToWorldNormalized(sx: number, sy: number): { x: number; y: number } {
+    const raw = this.screenToWorld(sx, sy);
+    return {
+      x: ((raw.x % MAP_WIDTH) + MAP_WIDTH) % MAP_WIDTH,
+      y: raw.y,
     };
   }
 }

@@ -23,7 +23,6 @@ export class SelectionRenderer {
   }
 
   render(state: GameState, selectedIds: ReadonlySet<number>, dragBox: DragBox, camera: Camera): void {
-    // Selection rings (world space)
     const wg = this.worldGfx;
     wg.clear();
 
@@ -31,10 +30,11 @@ export class SelectionRenderer {
       const u = state.units.find(u => u.id === id);
       if (!u) continue;
       const r = getStat(UNIT_RADIUS, u.type, u.tier);
-      wg.circle(u.x, u.y, r * 1.35).stroke({ color: 0xffd700, alpha: 0.9, width: 18 });
+      for (const offset of camera.tileOffsets(u.x)) {
+        wg.circle(u.x + offset, u.y, r * 1.35).stroke({ color: 0xffd700, alpha: 0.9, width: 18 });
+      }
     }
 
-    // Drag box (screen space)
     const sg = this.screenGfx;
     sg.clear();
     if (dragBox.active) {

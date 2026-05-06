@@ -1,5 +1,6 @@
 import { Container, Graphics, Text } from "pixi.js";
-import { Base, PlayerId } from "shared";
+import { Base, PlayerId, MAP_WIDTH } from "shared";
+import type { Camera } from "./Camera.js";
 
 export class BaseRenderer {
   container: Container;
@@ -13,11 +14,10 @@ export class BaseRenderer {
     this.container.addChild(this.gfx);
   }
 
-  render(bases: [Base, Base]): void {
+  render(bases: [Base, Base], camera: Camera): void {
     const g = this.gfx;
     g.clear();
 
-    // Lazy-create labels first time
     if (!this.initialized) {
       for (const base of bases) {
         const label = new Text({
@@ -25,29 +25,34 @@ export class BaseRenderer {
           style: { fill: 0xffffff, fontSize: 240, fontFamily: "monospace", fontWeight: "bold" },
         });
         label.anchor.set(0.5);
-        label.position.set(base.x, base.y);
         this.container.addChild(label);
         this.labels.push(label);
       }
       this.initialized = true;
     }
 
-    for (const base of bases) {
+    bases.forEach((base, i) => {
       const color = base.owner === PlayerId.One ? 0xe74c3c : 0x3498db;
       const r = 500;
 
-      // Base circle
-      g.circle(base.x, base.y, r).stroke({ color, width: 50 });
-      g.circle(base.x, base.y, r * 0.85).stroke({ color, alpha: 0.4, width: 30 });
+      for (const offset of camera.tileOffsets(base.x)) {
+        const bx = base.x + offset;
 
-      // HP bar
-      const barW = r * 2;
-      const barH = 100;
-      const barX = base.x - r;
-      const barY = base.y + r + 60;
-      g.rect(barX, barY, barW, barH).fill({ color: 0x222244 });
-      g.rect(barX, barY, barW * (base.hp / base.maxHp), barH).fill({ color });
-      g.rect(barX, barY, barW, barH).stroke({ color: 0x000000, alpha: 0.5, width: 4 });
-    }
+        g.circle(bx, base.y, r).stroke({ color, width: 50 });
+        g.circle(bx, base.y, r * 0.85).stroke({ color, alpha: 0.4, width: 30 });
+
+        const barW = r * 2;
+        const barH = 100;
+        const barX = bx - r;
+        const barY = base.y + r + 60;
+        g.rect(barX, barY, barW, barH).fill({ color: 0x222244 });
+        g.rect(barX, barY, barW * (base.hp / base.maxHp), barH).fill({ color });
+        g.rect(barX, barY, barW, barH).stroke({ color: 0x000000, alpha: 0.5, width: 4 });
+      }
+
+      // Label at canonical x (tile copy closest to camera center)
+      const canonX = base.x + Math.round((camera.x - base.x) / MAP_WIDTH) * MAP_WIDTH;
+      this.labels[i].position.set(canonX, base.y);
+    });
   }
 }

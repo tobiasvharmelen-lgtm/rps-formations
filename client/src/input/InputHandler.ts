@@ -2,7 +2,14 @@ import { Camera } from "../render/Camera.js";
 import { SelectionManager } from "./SelectionManager.js";
 import { CommandDispatcher } from "./CommandDispatcher.js";
 import { InputBackend } from "./InputBackend.js";
-import { UnitType, PlayerId, UNIT_RADIUS, getStat, Unit, BuildingType } from "shared";
+import { UnitType, PlayerId, UNIT_RADIUS, getStat, Unit, BuildingType, MAP_WIDTH } from "shared";
+
+function wrappedDx(ax: number, bx: number): number {
+  let d = ax - bx;
+  if (d > MAP_WIDTH / 2) d -= MAP_WIDTH;
+  else if (d < -MAP_WIDTH / 2) d += MAP_WIDTH;
+  return d;
+}
 
 export interface DragBox {
   active: boolean;
@@ -78,7 +85,7 @@ export class InputHandler {
 
   private onRightClick = (e: MouseEvent): void => {
     e.preventDefault();
-    const world = this.camera.screenToWorld(e.clientX, e.clientY);
+    const world = this.camera.screenToWorldNormalized(e.clientX, e.clientY);
     if (this.placingBuilding !== null) {
       this.dispatcher.placeBuilding(this.placingBuilding, world.x, world.y);
       this.placingBuilding = null;
@@ -88,7 +95,7 @@ export class InputHandler {
   };
 
   private commitClickSelect(sx: number, sy: number, additive: boolean): void {
-    const world = this.camera.screenToWorld(sx, sy);
+    const world = this.camera.screenToWorldNormalized(sx, sy);
     const hit = this.findUnitAt(world.x, world.y);
 
     if (hit) {
@@ -102,8 +109,8 @@ export class InputHandler {
   private commitBoxSelect(additive: boolean): void {
     const state = this.backend.getState();
     if (!state) return;
-    const start = this.camera.screenToWorld(this.dragBox.startScreen.x, this.dragBox.startScreen.y);
-    const end = this.camera.screenToWorld(this.dragBox.endScreen.x, this.dragBox.endScreen.y);
+    const start = this.camera.screenToWorldNormalized(this.dragBox.startScreen.x, this.dragBox.startScreen.y);
+    const end = this.camera.screenToWorldNormalized(this.dragBox.endScreen.x, this.dragBox.endScreen.y);
     const minX = Math.min(start.x, end.x);
     const maxX = Math.max(start.x, end.x);
     const minY = Math.min(start.y, end.y);
@@ -128,7 +135,7 @@ export class InputHandler {
     for (const u of state.units) {
       if (u.owner !== this.selection.humanPlayer) continue;
       const r = getStat(UNIT_RADIUS, u.type, u.tier);
-      const dx = u.x - wx;
+      const dx = wrappedDx(u.x, wx);
       const dy = u.y - wy;
       const d2 = dx * dx + dy * dy;
       if (d2 <= r * r && d2 < bestDist) {
@@ -222,7 +229,7 @@ export class InputHandler {
       // Finger tapped → select unit OR issue move command
       const sx = changed.clientX;
       const sy = changed.clientY;
-      const world = this.camera.screenToWorld(sx, sy);
+      const world = this.camera.screenToWorldNormalized(sx, sy);
       const hit = this.findUnitAt(world.x, world.y);
 
       if (hit) {

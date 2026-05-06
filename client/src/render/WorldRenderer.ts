@@ -26,7 +26,6 @@ export class WorldRenderer {
   private ui!: UIRenderer;
   selection = new SelectionRenderer();
 
-  /** Snapshot of last frame's units (for death detection) */
   private prevUnits = new Map<number, Unit>();
   private prevTick = -1;
 
@@ -43,22 +42,20 @@ export class WorldRenderer {
     this.camera = new Camera(this.pixi.worldLayer, sw, sh);
     this.ui = new UIRenderer(sw, sh);
 
-    // Add world-space layers in z-order
     this.pixi.worldLayer.addChild(
       this.map.container,
-      this.terrain.container,   // terrain scars below units
+      this.terrain.container,
       this.zones.container,
       this.bases.container,
-      this.buildings.container, // buildings above ground
-      this.effects.container,   // effects above ground but below units
+      this.buildings.container,
+      this.effects.container,
       this.units.container,
-      this.selection.worldContainer, // selection rings above units
+      this.selection.worldContainer,
     );
     this.pixi.uiLayer.addChild(this.ui.container, this.selection.screenContainer);
 
     this.map.render(false);
 
-    // Re-fit camera on window resize
     window.addEventListener("resize", () => {
       this.camera.fitToView();
     });
@@ -75,7 +72,8 @@ export class WorldRenderer {
   }
 
   render(state: GameState, selectedIds: ReadonlySet<number> = new Set(), dragBox?: DragBox): void {
-    // Effects: only detect deaths once per tick
+    const cam = this.camera;
+
     if (state.tick !== this.prevTick) {
       const currentIds = new Set(state.units.map(u => u.id));
       this.effects.trackDeaths(this.prevUnits, currentIds);
@@ -87,17 +85,17 @@ export class WorldRenderer {
       for (const u of state.units) this.prevUnits.set(u.id, { ...u });
     }
 
-    this.map.render(state.barrierOpen);
-    this.terrain.render(state.terrain);
-    this.zones.render(state.zones);
-    this.bases.render(state.bases);
-    this.buildings.render(state.buildings);
-    this.units.render(state.units);
-    this.effects.render();
+    this.map.render(state.barrierOpen, cam);
+    this.terrain.render(state.terrain, cam);
+    this.zones.render(state.zones, cam);
+    this.bases.render(state.bases, cam);
+    this.buildings.render(state.buildings, cam);
+    this.units.render(state.units, cam);
+    this.effects.render(cam);
     this.ui.render(state, selectedIds.size);
 
     if (dragBox) {
-      this.selection.render(state, selectedIds, dragBox, this.camera);
+      this.selection.render(state, selectedIds, dragBox, cam);
     }
   }
 }

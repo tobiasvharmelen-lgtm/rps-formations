@@ -1,5 +1,6 @@
 import { Container, Graphics } from "pixi.js";
 import { Unit } from "shared";
+import type { Camera } from "./Camera.js";
 
 interface DeathFx {
   x: number;
@@ -40,30 +41,32 @@ export class EffectsRenderer {
     this.merges.push({ x, y, age: 0, duration: 18 });
   }
 
-  render(): void {
+  render(camera: Camera): void {
     const g = this.gfx;
     g.clear();
 
-    // Death fades — expanding ring
     for (let i = this.deaths.length - 1; i >= 0; i--) {
       const fx = this.deaths[i];
       const t = fx.age / fx.duration;
       if (t >= 1) { this.deaths.splice(i, 1); continue; }
       const r = 80 + 200 * t;
       const alpha = 1 - t;
-      g.circle(fx.x, fx.y, r).stroke({ color: 0xffffff, alpha: alpha * 0.6, width: 12 });
+      for (const offset of camera.tileOffsets(fx.x)) {
+        g.circle(fx.x + offset, fx.y, r).stroke({ color: 0xffffff, alpha: alpha * 0.6, width: 12 });
+      }
       fx.age++;
     }
 
-    // Merge bursts — expanding gold ring
     for (let i = this.merges.length - 1; i >= 0; i--) {
       const fx = this.merges[i];
       const t = fx.age / fx.duration;
       if (t >= 1) { this.merges.splice(i, 1); continue; }
       const r = 100 + 600 * t;
       const alpha = 1 - t;
-      g.circle(fx.x, fx.y, r).stroke({ color: 0xffd700, alpha: alpha * 0.8, width: 30 });
-      g.circle(fx.x, fx.y, r * 0.6).stroke({ color: 0xffffff, alpha: alpha * 0.5, width: 15 });
+      for (const offset of camera.tileOffsets(fx.x)) {
+        g.circle(fx.x + offset, fx.y, r).stroke({ color: 0xffd700, alpha: alpha * 0.8, width: 30 });
+        g.circle(fx.x + offset, fx.y, r * 0.6).stroke({ color: 0xffffff, alpha: alpha * 0.5, width: 15 });
+      }
       fx.age++;
     }
   }

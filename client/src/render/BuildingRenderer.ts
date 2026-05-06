@@ -1,5 +1,6 @@
 import { Container, Graphics, Text } from "pixi.js";
-import { Building, BuildingType } from "shared";
+import { Building, BuildingType, MAP_WIDTH } from "shared";
+import type { Camera } from "./Camera.js";
 
 const BUILDING_COLOR: Record<BuildingType, number> = {
   [BuildingType.SwapTower]:  0xf1c40f,
@@ -24,7 +25,7 @@ export class BuildingRenderer {
     this.container.addChild(this.gfx);
   }
 
-  render(buildings: Building[]): void {
+  render(buildings: Building[], camera: Camera): void {
     this.gfx.clear();
 
     // Remove stale labels
@@ -40,21 +41,23 @@ export class BuildingRenderer {
       const color = BUILDING_COLOR[b.type];
       const size = 400;
 
-      // Body
-      this.gfx.rect(b.x - size / 2, b.y - size / 2, size, size)
-        .fill({ color, alpha: 0.7 })
-        .stroke({ color: 0xffffff, alpha: 0.6, width: 20 });
+      for (const offset of camera.tileOffsets(b.x)) {
+        const bx = b.x + offset;
 
-      // HP bar
-      const barW = size;
-      const barH = 60;
-      const barX = b.x - size / 2;
-      const barY = b.y + size / 2 + 40;
-      const hpFrac = b.hp / b.maxHp;
-      this.gfx.rect(barX, barY, barW, barH).fill({ color: 0x222222 });
-      this.gfx.rect(barX, barY, barW * hpFrac, barH).fill({ color: hpFrac > 0.5 ? 0x00cc44 : 0xcc4400 });
+        this.gfx.rect(bx - size / 2, b.y - size / 2, size, size)
+          .fill({ color, alpha: 0.7 })
+          .stroke({ color: 0xffffff, alpha: 0.6, width: 20 });
 
-      // Label
+        const barW = size;
+        const barH = 60;
+        const barX = bx - size / 2;
+        const barY = b.y + size / 2 + 40;
+        const hpFrac = b.hp / b.maxHp;
+        this.gfx.rect(barX, barY, barW, barH).fill({ color: 0x222222 });
+        this.gfx.rect(barX, barY, barW * hpFrac, barH).fill({ color: hpFrac > 0.5 ? 0x00cc44 : 0xcc4400 });
+      }
+
+      // Label at canonical x
       if (!this.labels.has(b.id)) {
         const label = new Text({
           text: TYPE_LABEL[b.type],
@@ -65,7 +68,8 @@ export class BuildingRenderer {
         this.labels.set(b.id, label);
       }
       const lbl = this.labels.get(b.id)!;
-      lbl.position.set(b.x, b.y);
+      const canonX = b.x + Math.round((camera.x - b.x) / MAP_WIDTH) * MAP_WIDTH;
+      lbl.position.set(canonX, b.y);
     }
   }
 }
