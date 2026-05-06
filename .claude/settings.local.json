@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-Command node -ErrorAction SilentlyContinue; Get-Command npm -ErrorAction SilentlyContinue; $env:PATH -split \";\" | Where-Object { $_ -match \"node|npm\" })",
+      "PowerShell($env:PATH = [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"User\"\\); where.exe node 2>&1; where.exe npm 2>&1)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(\"C:\\\\Program Files\\\\nodejs\\\\node.exe\" node_modules/tsx/dist/cli.mjs server/src/main.ts)",
+      "Bash(\"C:\\\\Program Files\\\\nodejs\\\\node.exe\" node_modules/vite/bin/vite.js --config client/vite.config.ts)",
+      "Bash(npx tsc *)",
+      "PowerShell(cd \"C:\\\\Users\\\\tobia\\\\Documents\\\\Claude code projects\\\\RPS RTS Game\"; node --version; npm --version; & \"$\\(npm root -g\\)\\\\.bin\\\\tsc\" --version 2>&1)",
+      "PowerShell(Get-Command node -ErrorAction SilentlyContinue; Get-ChildItem \"C:\\\\Program Files\\\\nodejs\\\\node.exe\" -ErrorAction SilentlyContinue; Get-ChildItem \"$env:APPDATA\\\\npm\\\\node.exe\" -ErrorAction SilentlyContinue; Get-ChildItem \"$env:ProgramFiles\\\\nodejs\" -ErrorAction SilentlyContinue | Select-Object -First 5)",
+      "PowerShell($env:PATH = \"C:\\\\Program Files\\\\nodejs;\" + $env:PATH; Set-Location \"C:\\\\Users\\\\tobia\\\\Documents\\\\Claude code projects\\\\RPS RTS Game\"; node --version)",
+      "Bash(node_modules\\\\.bin\\\\tsc.cmd --project server/tsconfig.json --noEmit)"
+    ]
+  }
+}
