@@ -92,8 +92,8 @@ export interface Zone {
 
 export interface PlayerState {
   id: PlayerId;
-  /** Resources per unit type: [rock, paper, scissors] */
-  resources: [number, number, number];
+  /** Shared gold pool */
+  resources: number;
 }
 
 export interface MergeEvent {

@@ -1,7 +1,7 @@
 import {
   GameState, GamePhase, PlayerId, PlayerInput, InputType,
   UnitType, Tier, Unit, ZoneType,
-  UNIT_HP, STARTING_RESOURCES, BASE_HP,
+  UNIT_HP, UNIT_RADIUS, STARTING_RESOURCES, BASE_HP,
   ZONE_RADIUS, MAP_WIDTH, MAP_HEIGHT, SPAWN_COST_T1, getStat,
   MERGE_COUNT, MERGE_RADIUS,
 } from "shared";
@@ -16,12 +16,22 @@ import { checkWin, resetWinState } from "./systems/WinCondition.js";
 let nextUnitId = 1;
 let nextMergedUnitId = 200_000;
 
-/** Deterministic per-unit offset so a group doesn't all walk to the same pixel. */
-function deterministicOffset(unitId: number, groupSize: number): { dx: number; dy: number } {
-  const angle = (unitId * 2.399963) % (2 * Math.PI);
-  const maxR  = Math.sqrt(groupSize) * 120;
-  const r     = ((unitId * 7) % 100) / 100 * maxR;
-  return { dx: Math.cos(angle) * r, dy: Math.sin(angle) * r };
+/** Places unit slotIndex into a concentric-ring formation around the destination.
+ *  Guarantees slot spacing >= unitRadius*2.5 so units can settle without oscillating. */
+function formationSlot(slotIndex: number, unitRadius: number): { dx: number; dy: number } {
+  if (slotIndex === 0) return { dx: 0, dy: 0 };
+  const spacing = unitRadius * 2.5;
+  let ring = 1, accumulated = 1;
+  while (true) {
+    const slotsInRing = Math.floor(2 * Math.PI * ring);
+    if (slotIndex < accumulated + slotsInRing) {
+      const posInRing = slotIndex - accumulated;
+      const angle = (posInRing / slotsInRing) * 2 * Math.PI;
+      return { dx: Math.cos(angle) * spacing * ring, dy: Math.sin(angle) * spacing * ring };
+    }
+    accumulated += slotsInRing;
+    ring++;
+  }
 }
 
 function makeInitialState(): GameState {
@@ -30,8 +40,8 @@ function makeInitialState(): GameState {
     phase: GamePhase.WaitingForPlayers,
     countdown: 0,
     players: [
-      { id: PlayerId.One, resources: [STARTING_RESOURCES, STARTING_RESOURCES, STARTING_RESOURCES] },
-      { id: PlayerId.Two, resources: [STARTING_RESOURCES, STARTING_RESOURCES, STARTING_RESOURCES] },
+      { id: PlayerId.One, resources: STARTING_RESOURCES },
+      { id: PlayerId.Two, resources: STARTING_RESOURCES },
     ],
     units: [],
     bases: [
@@ -99,8 +109,8 @@ export class GameSimulation {
     const type = input.spawnType ?? UnitType.Rock;
     const playerState = this.state.players[playerId - 1];
 
-    if (playerState.resources[type] < SPAWN_COST_T1) return;
-    playerState.resources[type] -= SPAWN_COST_T1;
+    if (playerState.resources < SPAWN_COST_T1) return;
+    playerState.resources -= SPAWN_COST_T1;
 
     const base   = this.state.bases[playerId - 1];
     const jitter = () => (Math.random() - 0.5) * 400;
@@ -130,12 +140,20 @@ export class GameSimulation {
     const ids   = input.unitIds ?? [];
     const destX = input.destX  ?? 0;
     const destY = input.destY  ?? 0;
-    const n     = ids.length;
 
-    for (let i = 0; i < n; i++) {
-      const u = this.state.units.find(u => u.id === ids[i] && u.owner === playerId);
-      if (!u) continue;
-      const off = deterministicOffset(u.id, n);
+    const units: Unit[] = [];
+    for (const id of ids) {
+      const u = this.state.units.find(u => u.id === id && u.owner === playerId);
+      if (u) units.push(u);
+    }
+
+    const maxRadius = units.reduce(
+      (m, u) => Math.max(m, getStat(UNIT_RADIUS, u.type, u.tier)), 80
+    );
+
+    for (let i = 0; i < units.length; i++) {
+      const u   = units[i];
+      const off = formationSlot(i, maxRadius);
       u.targetX = Math.max(0, Math.min(MAP_WIDTH,  destX + off.dx));
       u.targetY = Math.max(0, Math.min(MAP_HEIGHT, destY + off.dy));
     }

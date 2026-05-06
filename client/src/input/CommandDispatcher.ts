@@ -19,7 +19,7 @@ export class CommandDispatcher {
     const state = this.backend.getState();
     if (!state) return false;
     const player = state.players[playerId - 1];
-    if (player.resources[type] < SPAWN_COST_T1) return false;
+    if (player.resources < SPAWN_COST_T1) return false;
 
     if (playerId !== this.backend.playerId) {
       const localSim = (this.backend as any).sim;

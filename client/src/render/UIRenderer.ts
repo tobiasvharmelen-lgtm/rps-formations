@@ -1,15 +1,11 @@
 import { Container, Graphics, Text } from "pixi.js";
 import { GameState, PlayerId } from "shared";
 
-const RESOURCE_LABELS = ["Rock", "Paper", "Scissors"] as const;
-const RESOURCE_COLORS = [0xe74c3c, 0x3498db, 0x2ecc71];
-
 class PlayerHUD {
   container: Container;
   private bg: Graphics;
-  private resourceTexts: Text[] = [];
+  private goldText: Text;
   private label: Text;
-  private tickText: Text | null = null;
 
   constructor(playerId: PlayerId, isLeft: boolean) {
     this.container = new Container();
@@ -25,24 +21,18 @@ class PlayerHUD {
     this.label.position.set(16, 10);
     this.container.addChild(this.label);
 
-    for (let i = 0; i < 3; i++) {
-      const t = new Text({
-        text: `${RESOURCE_LABELS[i]}: 0`,
-        style: { fill: RESOURCE_COLORS[i], fontSize: 16, fontFamily: "monospace" },
-      });
-      t.position.set(16, 36 + i * 22);
-      this.container.addChild(t);
-      this.resourceTexts.push(t);
-    }
+    this.goldText = new Text({
+      text: "Gold: 0",
+      style: { fill: 0xffd700, fontSize: 16, fontFamily: "monospace" },
+    });
+    this.goldText.position.set(16, 36);
+    this.container.addChild(this.goldText);
 
-    // Background panel
-    this.bg.roundRect(0, 0, 200, 110, 8).fill({ color: 0x000000, alpha: 0.6 }).stroke({ color, width: 2, alpha: 0.5 });
+    this.bg.roundRect(0, 0, 200, 68, 8).fill({ color: 0x000000, alpha: 0.6 }).stroke({ color, width: 2, alpha: 0.5 });
   }
 
-  update(resources: readonly [number, number, number]): void {
-    for (let i = 0; i < 3; i++) {
-      this.resourceTexts[i].text = `${RESOURCE_LABELS[i]}: ${resources[i]}`;
-    }
+  update(resources: number): void {
+    this.goldText.text = `Gold: ${resources}`;
   }
 }
 

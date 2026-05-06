@@ -20,14 +20,14 @@ describe("GameSimulation — spawn", () => {
 
   it("deducts resources on spawn", () => {
     const sim = makeSim();
-    const before = sim.state.players[0].resources[UnitType.Rock];
+    const before = sim.state.players[0].resources;
     sim.applyInput(PlayerId.One, { seq: 1, type: InputType.SpawnUnit, spawnType: UnitType.Rock });
-    expect(sim.state.players[0].resources[UnitType.Rock]).toBe(before - 10);
+    expect(sim.state.players[0].resources).toBe(before - 10);
   });
 
   it("does not spawn when resources are insufficient", () => {
     const sim = makeSim();
-    sim.state.players[0].resources = [0, 0, 0];
+    sim.state.players[0].resources = 0;
     sim.applyInput(PlayerId.One, { seq: 1, type: InputType.SpawnUnit, spawnType: UnitType.Rock });
     expect(sim.state.units).toHaveLength(0);
   });

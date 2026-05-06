@@ -10,12 +10,11 @@ export const MAP_WIDTH = 24_000;       // world-mm
 export const MAP_HEIGHT = 16_000;
 
 // ---- Economy ----
-export const STARTING_RESOURCES = 500; // per resource pool
-export const INCOME_BASE = 1;          // per pool per income tick
-export const INCOME_ZONE_BONUS = 3;    // added to matching pool per owned zone
+export const STARTING_RESOURCES = 500; // shared gold pool
+export const INCOME_BASE = 3;          // gold per income tick
+export const INCOME_ZONE_BONUS = 5;    // bonus gold per owned zone per income tick
 export const INCOME_TICK_EVERY = 20;   // game ticks between income ticks (1/sec)
-export const INCOME_PER_UNIT = 1;      // matching resource pts per unit per income tick
-export const SPAWN_COST_T1 = 10;       // deducted from matching resource pool
+export const SPAWN_COST_T1 = 10;       // gold cost to spawn any T1 unit
 
 // ---- Merge ----
 export const MERGE_COUNT = 10;

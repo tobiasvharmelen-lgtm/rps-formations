@@ -223,9 +223,9 @@ export class DebugRenderer {
     const p2 = state.players[1];
 
     ctx.fillStyle = "#e74c3c";
-    ctx.fillText(`P1  R:${p1.resources[0]}  P:${p1.resources[1]}  S:${p1.resources[2]}`, 10, 20);
+    ctx.fillText(`P1  Gold: ${p1.resources}`, 10, 20);
     ctx.fillStyle = "#3498db";
-    ctx.fillText(`P2  R:${p2.resources[0]}  P:${p2.resources[1]}  S:${p2.resources[2]}`, 10, 38);
+    ctx.fillText(`P2  Gold: ${p2.resources}`, 10, 38);
 
     ctx.fillStyle = "#888";
     ctx.fillText(`Tick: ${state.tick}  Units: ${state.units.length}`, 10, 56);
