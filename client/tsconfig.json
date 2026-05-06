@@ -3,8 +3,11 @@
   "compilerOptions": {
     "lib": ["ES2022", "DOM"],
     "outDir": "./dist",
-    "rootDir": "./src",
-    "noEmit": true
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "server/*": ["../server/src/*"]
+    }
   },
   "include": ["src"]
 }
