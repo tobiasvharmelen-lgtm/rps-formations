@@ -3,7 +3,7 @@ import { UNIT_SPEED, UNIT_RADIUS, MAP_WIDTH, MAP_HEIGHT, getStat } from "shared"
 import { SpatialHash } from "../SpatialHash.js";
 
 /** Units brake when within this many mm of their individual target. */
-const STOPPING_DISTANCE = 5;
+const STOPPING_DISTANCE = 20;
 const SEPARATION_STRENGTH = 1.2;
 
 export function tickMovement(state: GameState, spatialHash: SpatialHash): void {
@@ -25,8 +25,10 @@ export function tickMovement(state: GameState, spatialHash: SpatialHash): void {
     }
 
     // ---- Seek force toward individual target ----
-    let vx = (dx / dist) * speed;
-    let vy = (dy / dist) * speed;
+    // Clamp seek speed to distance remaining to prevent overshoot
+    const clampedSpeed = Math.min(speed, dist);
+    let vx = (dx / dist) * clampedSpeed;
+    let vy = (dy / dist) * clampedSpeed;
 
     // ---- Separation: push away from overlapping neighbours ----
     const sepRadius = radius * 2.2;
