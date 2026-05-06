@@ -1,9 +1,10 @@
 import {
   GameState, GamePhase, PlayerId, PlayerInput, InputType,
-  UnitType, Tier, Unit, ZoneType,
+  UnitType, Tier, Unit, ZoneType, BuildingType,
   UNIT_HP, UNIT_RADIUS, STARTING_RESOURCES, BASE_HP,
   ZONE_RADIUS, MAP_WIDTH, MAP_HEIGHT, SPAWN_COST_T1, getStat,
-  MERGE_COUNT, MERGE_RADIUS,
+  MERGE_COUNT, MERGE_RADIUS, WAR_ZONE_DEPTH, BARRIER_BREAK_COST,
+  BUILDING_STATS,
 } from "shared";
 import { SpatialHash } from "./SpatialHash.js";
 import { tickEconomy } from "./systems/EconomySystem.js";
@@ -11,6 +12,8 @@ import { tickMovement } from "./systems/MovementSystem.js";
 import { tickCombat } from "./systems/CombatSystem.js";
 import { tickMerge } from "./systems/MergeSystem.js";
 import { tickZones } from "./systems/ZoneSystem.js";
+import { tickBuildings } from "./systems/BuildingSystem.js";
+import { tickTerrain } from "./systems/TerrainSystem.js";
 import { checkWin, resetWinState } from "./systems/WinCondition.js";
 
 let nextUnitId = 1;
@@ -20,7 +23,7 @@ let nextMergedUnitId = 200_000;
  *  Guarantees slot spacing >= unitRadius*2.5 so units can settle without oscillating. */
 function formationSlot(slotIndex: number, unitRadius: number): { dx: number; dy: number } {
   if (slotIndex === 0) return { dx: 0, dy: 0 };
-  const spacing = unitRadius * 2.5;
+  const spacing = unitRadius * 3.5;
   let ring = 1, accumulated = 1;
   while (true) {
     const slotsInRing = Math.floor(2 * Math.PI * ring);
@@ -49,12 +52,14 @@ function makeInitialState(): GameState {
       { owner: PlayerId.Two, x: MAP_WIDTH - 2_000, y: MAP_HEIGHT / 2, hp: BASE_HP, maxHp: BASE_HP, attackCooldown: 0 },
     ],
     zones: [
-      { type: ZoneType.Circle,   x: MAP_WIDTH / 2, y: MAP_HEIGHT / 4,       radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
-      { type: ZoneType.Square,   x: MAP_WIDTH / 2, y: MAP_HEIGHT / 2,       radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
-      { type: ZoneType.Triangle, x: MAP_WIDTH / 2, y: (MAP_HEIGHT * 3) / 4, radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
+      { type: ZoneType.TopMid,    x: MAP_WIDTH / 2, y: MAP_HEIGHT / 4,       radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
+      { type: ZoneType.BottomMid, x: MAP_WIDTH / 2, y: (MAP_HEIGHT * 3) / 4, radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
     ],
     winnerId: 0,
     mergeEvents: [],
+    barrierOpen: false,
+    buildings: [],
+    terrain: [],
   };
 }
 
@@ -89,6 +94,8 @@ export class GameSimulation {
     this.spatialHash.clear();
     for (const u of this.state.units) this.spatialHash.insert(u.id, u.x, u.y);
 
+    tickTerrain(this.state, this.spatialHash);
+    tickBuildings(this.state, this.spatialHash);
     tickCombat(this.state, this.spatialHash);
     tickMerge(this.state);
     tickZones(this.state);
@@ -99,9 +106,12 @@ export class GameSimulation {
 
   applyInput(playerId: PlayerId, input: PlayerInput): void {
     switch (input.type) {
-      case InputType.SpawnUnit:  this.spawnUnit(playerId, input);  break;
-      case InputType.MoveUnits:  this.moveUnits(playerId, input);  break;
-      case InputType.MergeUnits: this.mergeUnits(playerId, input); break;
+      case InputType.SpawnUnit:     this.spawnUnit(playerId, input);     break;
+      case InputType.MoveUnits:     this.moveUnits(playerId, input);     break;
+      case InputType.MergeUnits:    this.mergeUnits(playerId, input);    break;
+      case InputType.OpenMiddle:    this.openMiddle(playerId);           break;
+      case InputType.PlaceBuilding: this.placeBuilding(playerId, input); break;
+      case InputType.SetTowerType:  this.setTowerType(playerId, input);  break;
     }
   }
 
@@ -133,6 +143,7 @@ export class GameSimulation {
       targetY: sy,
       attackCooldown: 0,
       targetId: 0,
+      slowed: false,
     });
   }
 
@@ -203,6 +214,48 @@ export class GameSimulation {
       targetY: cy,
       attackCooldown: 0,
       targetId: 0,
+      slowed: false,
     });
+  }
+
+  private openMiddle(playerId: PlayerId): void {
+    const player = this.state.players[playerId - 1];
+    if (!this.state.barrierOpen && player.resources >= BARRIER_BREAK_COST) {
+      player.resources -= BARRIER_BREAK_COST;
+      this.state.barrierOpen = true;
+    }
+  }
+
+  private placeBuilding(playerId: PlayerId, input: PlayerInput): void {
+    const bType = input.buildingType;
+    if (bType === undefined) return;
+    const x = input.destX ?? 0;
+    const y = input.destY ?? 0;
+    const player = this.state.players[playerId - 1];
+    const stats = BUILDING_STATS[bType];
+    if (player.resources < stats.cost) return;
+
+    // Reject placement inside either war zone
+    if (x < WAR_ZONE_DEPTH || x > MAP_WIDTH - WAR_ZONE_DEPTH) return;
+
+    player.resources -= stats.cost;
+    this.state.buildings.push({
+      id: nextMergedUnitId++,
+      owner: playerId,
+      type: bType,
+      x,
+      y,
+      hp: stats.hp,
+      maxHp: stats.hp,
+      conversionRadius: stats.conversionRadius,
+    });
+  }
+
+  private setTowerType(playerId: PlayerId, input: PlayerInput): void {
+    const bid = input.buildingId;
+    const utype = input.unitType;
+    if (bid === undefined || utype === undefined) return;
+    const building = this.state.buildings.find(b => b.id === bid && b.owner === playerId && b.type === BuildingType.SwapTower);
+    if (building) building.setType = utype;
   }
 }

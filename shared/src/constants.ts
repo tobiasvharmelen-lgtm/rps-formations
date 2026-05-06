@@ -1,4 +1,4 @@
-import { UnitType, Tier } from "./types.js";
+import { UnitType, Tier, BuildingType } from "./types.js";
 
 // ---- Timing ----
 export const TICK_RATE = 20;           // ticks per second
@@ -8,6 +8,7 @@ export const COUNTDOWN_TICKS = 3 * TICK_RATE; // 3-second countdown
 // ---- Map ----
 export const MAP_WIDTH = 24_000;       // world-mm
 export const MAP_HEIGHT = 16_000;
+export const WAR_ZONE_DEPTH = 3_500;   // mm — x < WAR_ZONE_DEPTH is P1 war zone, x > MAP_WIDTH-WAR_ZONE_DEPTH is P2
 
 // ---- Economy ----
 export const STARTING_RESOURCES = 500; // shared gold pool
@@ -79,8 +80,18 @@ export const DAMAGE_MULT: readonly [number, number, number][] = [
 // ---- Zone capture ----
 export const ZONE_RADIUS = 1_200;       // world-mm
 export const ZONE_CAPTURE_RATE = 2;     // progress points per tick when units inside
-export const ZONE_CAPTURE_BONUS = 2.0;  // multiplier for correct unit type
 export const ZONE_FULL = 100;           // |captureProgress| threshold to own a zone
+
+// ---- Barrier & lane ----
+export const BARRIER_BREAK_COST = 80;  // gold to open the middle
+export const LANE_SPEED_BUFF = 1.5;    // speed multiplier for units in owned midfield lane
+
+// ---- Buildings ----
+export const BUILDING_STATS: Record<BuildingType, { hp: number; cost: number; conversionRadius: number; incomeBonus?: number }> = {
+  [BuildingType.SwapTower]:  { hp: 300, cost:  60, conversionRadius: 600 },
+  [BuildingType.MirrorGate]: { hp: 500, cost: 120, conversionRadius: 600 },
+  [BuildingType.Refinery]:   { hp: 400, cost: 100, conversionRadius:   0, incomeBonus: 3 },
+};
 
 // ---- Render ----
 export const CLIENT_BUFFER_MS = 100;    // snapshot interpolation delay

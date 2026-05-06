@@ -31,7 +31,6 @@ export class SpatialHash {
     const maxCX = Math.floor((x + radius) / this.cellSize);
     const minCY = Math.floor((y - radius) / this.cellSize);
     const maxCY = Math.floor((y + radius) / this.cellSize);
-    const r2 = radius * radius;
 
     for (let cx = minCX; cx <= maxCX; cx++) {
       for (let cy = minCY; cy <= maxCY; cy++) {
@@ -43,6 +42,21 @@ export class SpatialHash {
       }
     }
     return result;
+  }
+
+  /**
+   * Like query() but also checks the horizontally-mirrored position when near
+   * the left/right edges, supporting cylinder (horizontal wrap) maps.
+   */
+  queryWrapped(x: number, y: number, radius: number, mapWidth: number): number[] {
+    const ids = new Set(this.query(x, y, radius));
+    if (x - radius < 0) {
+      for (const id of this.query(x + mapWidth, y, radius)) ids.add(id);
+    }
+    if (x + radius > mapWidth) {
+      for (const id of this.query(x - mapWidth, y, radius)) ids.add(id);
+    }
+    return [...ids];
   }
 
   private hashPos(x: number, y: number): number {

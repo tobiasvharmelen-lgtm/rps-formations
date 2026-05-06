@@ -18,9 +18,8 @@ export const enum PlayerId {
 }
 
 export const enum ZoneType {
-  Circle = 0,
-  Square = 1,
-  Triangle = 2,
+  TopMid = 0,
+  BottomMid = 1,
 }
 
 export const enum ZoneOwner {
@@ -37,9 +36,24 @@ export const enum GamePhase {
 }
 
 export const enum InputType {
-  MoveUnits  = 0,
-  SpawnUnit  = 3,
-  MergeUnits = 4,
+  MoveUnits     = 0,
+  SpawnUnit     = 3,
+  MergeUnits    = 4,
+  OpenMiddle    = 5,
+  PlaceBuilding = 6,
+  SetTowerType  = 7,
+}
+
+export const enum BuildingType {
+  SwapTower  = 0,
+  MirrorGate = 1,
+  Refinery   = 2,
+}
+
+export const enum TerrainType {
+  RockWall      = 0,
+  ScissorHazard = 1,
+  PaperGrass    = 2,
 }
 
 // ---- Value types ----
@@ -69,6 +83,7 @@ export interface Unit {
   targetY: number;
   attackCooldown: number;
   targetId: number;
+  slowed: boolean;
 }
 
 export interface Base {
@@ -96,6 +111,26 @@ export interface PlayerState {
   resources: number;
 }
 
+export interface Building {
+  id: number;
+  owner: PlayerId;
+  type: BuildingType;
+  x: number;
+  y: number;
+  hp: number;
+  maxHp: number;
+  setType?: UnitType;
+  conversionRadius: number;
+}
+
+export interface Terrain {
+  id: number;
+  type: TerrainType;
+  x: number;
+  y: number;
+  radius: number;
+}
+
 export interface MergeEvent {
   x: number;
   y: number;
@@ -111,6 +146,9 @@ export interface GameState {
   zones: Zone[];
   winnerId: PlayerId | 0;
   mergeEvents: MergeEvent[];
+  barrierOpen: boolean;
+  buildings: Building[];
+  terrain: Terrain[];
 }
 
 // ---- Network inputs ----
@@ -126,4 +164,9 @@ export interface PlayerInput {
   spawnType?: UnitType;
   // MergeUnits
   mergeUnitIds?: number[];
+  // PlaceBuilding
+  buildingType?: BuildingType;
+  // SetTowerType
+  buildingId?: number;
+  unitType?: UnitType;
 }

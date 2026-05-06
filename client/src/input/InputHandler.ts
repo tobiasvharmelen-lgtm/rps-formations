@@ -2,7 +2,7 @@ import { Camera } from "../render/Camera.js";
 import { SelectionManager } from "./SelectionManager.js";
 import { CommandDispatcher } from "./CommandDispatcher.js";
 import { InputBackend } from "./InputBackend.js";
-import { UnitType, PlayerId, UNIT_RADIUS, getStat, Unit } from "shared";
+import { UnitType, PlayerId, UNIT_RADIUS, getStat, Unit, BuildingType } from "shared";
 
 export interface DragBox {
   active: boolean;
@@ -12,6 +12,8 @@ export interface DragBox {
 
 export class InputHandler {
   dragBox: DragBox = { active: false, startScreen: { x: 0, y: 0 }, endScreen: { x: 0, y: 0 } };
+  /** Non-null when the player has chosen a building type to place */
+  placingBuilding: BuildingType | null = null;
 
   private mouseDownPos: { x: number; y: number } | null = null;
   private readonly DRAG_THRESHOLD = 6;
@@ -77,6 +79,11 @@ export class InputHandler {
   private onRightClick = (e: MouseEvent): void => {
     e.preventDefault();
     const world = this.camera.screenToWorld(e.clientX, e.clientY);
+    if (this.placingBuilding !== null) {
+      this.dispatcher.placeBuilding(this.placingBuilding, world.x, world.y);
+      this.placingBuilding = null;
+      return;
+    }
     this.dispatcher.moveSelected(world.x, world.y);
   };
 
@@ -140,6 +147,10 @@ export class InputHandler {
     else if (key === "x") this.handleSpawn(UnitType.Paper, e.shiftKey);
     else if (key === "c") this.handleSpawn(UnitType.Scissors, e.shiftKey);
     else if (key === "u") this.dispatcher.upgradeSelected();
+    else if (key === "m") this.dispatcher.openMiddle();
+    else if (key === "q") this.placingBuilding = BuildingType.SwapTower;
+    else if (key === "e") this.placingBuilding = BuildingType.MirrorGate;
+    else if (key === "f") this.placingBuilding = BuildingType.Refinery;
     else if (/^[1-9]$/.test(key)) {
       const n = parseInt(key, 10);
       const state = this.backend.getState();

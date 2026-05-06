@@ -66,6 +66,7 @@ export class LocalGame {
     this.selection.reconcile(this.sim.state);
 
     this.renderer.update(dtMs / 1000);
+    this.renderer.showPlacingMode(this.input.placingBuilding);
     this.renderer.render(this.sim.state, this.selection.selectedIds, this.input.dragBox);
     this.rafId = requestAnimationFrame(this.loop);
   };

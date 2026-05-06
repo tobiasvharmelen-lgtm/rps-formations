@@ -2,9 +2,8 @@ import { Container, Graphics } from "pixi.js";
 import { Zone, ZoneType, ZoneOwner } from "shared";
 
 const ZONE_COLOR: Record<ZoneType, number> = {
-  [ZoneType.Circle]:   0xe74c3c,
-  [ZoneType.Square]:   0x3498db,
-  [ZoneType.Triangle]: 0x2ecc71,
+  [ZoneType.TopMid]:    0xf39c12,
+  [ZoneType.BottomMid]: 0x9b59b6,
 };
 
 const OWNER_FILL: Record<ZoneOwner, { color: number; alpha: number }> = {
@@ -35,23 +34,16 @@ export class ZoneRenderer {
       const fill = OWNER_FILL[zone.owner];
       const r = zone.radius;
 
-      switch (zone.type) {
-        case ZoneType.Circle:
-          sg.circle(zone.x, zone.y, r).fill({ color: fill.color, alpha: fill.alpha }).stroke({ color, width: 30 });
-          break;
-        case ZoneType.Square:
-          sg.rect(zone.x - r, zone.y - r, r * 2, r * 2).fill({ color: fill.color, alpha: fill.alpha }).stroke({ color, width: 30 });
-          break;
-        case ZoneType.Triangle: {
-          const cos30 = Math.cos(Math.PI / 6);
-          sg.moveTo(zone.x, zone.y - r)
-            .lineTo(zone.x + r * cos30, zone.y + r * 0.5)
-            .lineTo(zone.x - r * cos30, zone.y + r * 0.5)
-            .closePath()
-            .fill({ color: fill.color, alpha: fill.alpha })
-            .stroke({ color, width: 30 });
-          break;
+      // Both midfield zones rendered as hexagons
+      {
+        const sides = 6;
+        for (let i = 0; i < sides; i++) {
+          const angle = (i / sides) * Math.PI * 2 - Math.PI / 6;
+          const px = zone.x + Math.cos(angle) * r;
+          const py = zone.y + Math.sin(angle) * r;
+          if (i === 0) sg.moveTo(px, py); else sg.lineTo(px, py);
         }
+        sg.closePath().fill({ color: fill.color, alpha: fill.alpha }).stroke({ color, width: 30 });
       }
 
       // Capture progress bar below zone

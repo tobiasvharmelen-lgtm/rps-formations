@@ -1,6 +1,13 @@
-import { GameState } from "shared";
-import { UNIT_SPEED, UNIT_RADIUS, MAP_WIDTH, MAP_HEIGHT, getStat } from "shared";
+import { GameState, ZoneOwner, ZoneType } from "shared";
+import { UNIT_SPEED, UNIT_RADIUS, MAP_WIDTH, MAP_HEIGHT, WAR_ZONE_DEPTH, LANE_SPEED_BUFF, getStat } from "shared";
 import { SpatialHash } from "../SpatialHash.js";
+
+function wrappedDx(ax: number, bx: number): number {
+  let d = ax - bx;
+  if (d >  MAP_WIDTH / 2) d -= MAP_WIDTH;
+  if (d < -MAP_WIDTH / 2) d += MAP_WIDTH;
+  return d;
+}
 
 /** Units brake when within this many mm of their individual target. */
 const STOPPING_DISTANCE = 20;
@@ -11,8 +18,11 @@ export function tickMovement(state: GameState, spatialHash: SpatialHash): void {
     const speed  = getStat(UNIT_SPEED,  unit.type, unit.tier);
     const radius = getStat(UNIT_RADIUS, unit.type, unit.tier);
 
+    unit.slowed = false;
+
     // ---- Brake: stop when close enough to target ----
-    const dx   = unit.targetX - unit.x;
+    // Use shortest wrapped path to target
+    const dx   = wrappedDx(unit.targetX, unit.x);
     const dy   = unit.targetY - unit.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
 
@@ -24,22 +34,37 @@ export function tickMovement(state: GameState, spatialHash: SpatialHash): void {
       continue;
     }
 
+    // ---- Lane polarity speed buff ----
+    let effectiveSpeed = speed;
+    if (!state.barrierOpen) {
+      const inTopLane = unit.y < MAP_HEIGHT / 2;
+      const laneZoneType = inTopLane ? ZoneType.TopMid : ZoneType.BottomMid;
+      const laneZone = state.zones.find(z => z.type === laneZoneType);
+      const laneOwner = inTopLane ? ZoneOwner.Player1 : ZoneOwner.Player2;
+      if (laneZone && laneZone.owner !== ZoneOwner.Neutral) {
+        const beneficiary = laneZone.owner === ZoneOwner.Player1 ? 1 : 2;
+        if (unit.owner === beneficiary) effectiveSpeed *= LANE_SPEED_BUFF;
+      }
+    }
+    // Apply slowing from PaperGrass terrain (set by TerrainSystem earlier)
+    if (unit.slowed) effectiveSpeed *= 0.5;
+
     // ---- Seek force toward individual target ----
     // Clamp seek speed to distance remaining to prevent overshoot
-    const clampedSpeed = Math.min(speed, dist);
+    const clampedSpeed = Math.min(effectiveSpeed, dist);
     let vx = (dx / dist) * clampedSpeed;
     let vy = (dy / dist) * clampedSpeed;
 
     // ---- Separation: push away from overlapping neighbours ----
     const sepRadius = radius * 2.2;
-    const neighbors = spatialHash.query(unit.x, unit.y, sepRadius);
+    const neighbors = spatialHash.queryWrapped(unit.x, unit.y, sepRadius, MAP_WIDTH);
 
     for (const nid of neighbors) {
       if (nid === unit.id) continue;
       const n = state.units.find(u => u.id === nid);
       if (!n) continue;
 
-      const ndx   = unit.x - n.x;
+      const ndx   = wrappedDx(unit.x, n.x);
       const ndy   = unit.y - n.y;
       const ndist = Math.sqrt(ndx * ndx + ndy * ndy);
       const minDist = radius + getStat(UNIT_RADIUS, n.type, n.tier);
@@ -51,19 +76,35 @@ export function tickMovement(state: GameState, spatialHash: SpatialHash): void {
       }
     }
 
-    // Clamp to max speed
+    // Clamp to max speed (use effectiveSpeed as cap)
     const mag = Math.sqrt(vx * vx + vy * vy);
-    if (mag > speed) {
-      vx = (vx / mag) * speed;
-      vy = (vy / mag) * speed;
+    if (mag > effectiveSpeed) {
+      vx = (vx / mag) * effectiveSpeed;
+      vy = (vy / mag) * effectiveSpeed;
     }
 
+    const prevY = unit.y;
     unit.x += vx;
     unit.y += vy;
 
-    // ---- Edge sliding: zero only the wall-perpendicular velocity component ----
-    if (unit.x < 0)           { unit.x = 0;          vx = Math.max(0, vx); }
-    if (unit.x > MAP_WIDTH)   { unit.x = MAP_WIDTH;   vx = Math.min(0, vx); }
+    // ---- Barrier collision (horizontal line at MAP_HEIGHT/2, only in field area) ----
+    if (!state.barrierOpen) {
+      const barrierY = MAP_HEIGHT / 2;
+      const inField = unit.x > WAR_ZONE_DEPTH && unit.x < MAP_WIDTH - WAR_ZONE_DEPTH;
+      if (inField && ((prevY < barrierY && unit.y >= barrierY) || (prevY > barrierY && unit.y <= barrierY))) {
+        unit.y = prevY;
+        vy = 0;
+        // Also clamp target to same side of barrier to stop seek force from pushing through
+        if (unit.targetY > barrierY && prevY < barrierY) unit.targetY = barrierY - radius;
+        if (unit.targetY < barrierY && prevY > barrierY) unit.targetY = barrierY + radius;
+      }
+    }
+
+    // ---- Horizontal wrap (cylinder map) ----
+    if (unit.x < 0)          unit.x += MAP_WIDTH;
+    if (unit.x > MAP_WIDTH)  unit.x -= MAP_WIDTH;
+
+    // ---- Vertical hard bounds ----
     if (unit.y < 0)           { unit.y = 0;           vy = Math.max(0, vy); }
     if (unit.y > MAP_HEIGHT)  { unit.y = MAP_HEIGHT;  vy = Math.min(0, vy); }
 

@@ -1,8 +1,27 @@
-import { GameState, Unit, PlayerId } from "shared";
-import { UNIT_ATTACK_RANGE, UNIT_ATTACK_COOLDOWN, getStat } from "shared";
+import { GameState, Unit, PlayerId, Tier, TerrainType, UnitType } from "shared";
+import { UNIT_ATTACK_RANGE, UNIT_ATTACK_COOLDOWN, UNIT_DAMAGE, getStat } from "shared";
 import { computeDamage, hasAdvantage } from "shared";
 import { BASE_ATTACK_RANGE, BASE_DAMAGE, BASE_ATTACK_COOLDOWN } from "shared";
 import { SpatialHash } from "../SpatialHash.js";
+import { MAP_WIDTH } from "shared";
+
+let nextTerrainId = 1_000_000;
+
+const TERRAIN_FROM_UNIT: Record<UnitType, TerrainType> = {
+  [UnitType.Rock]:     TerrainType.RockWall,
+  [UnitType.Paper]:    TerrainType.PaperGrass,
+  [UnitType.Scissors]: TerrainType.ScissorHazard,
+};
+
+function spawnBattleScar(state: GameState, unit: Unit): void {
+  state.terrain.push({
+    id: nextTerrainId++,
+    type: TERRAIN_FROM_UNIT[unit.type],
+    x: unit.x,
+    y: unit.y,
+    radius: 500,
+  });
+}
 
 export function tickCombat(state: GameState, spatialHash: SpatialHash): void {
   const unitMap  = new Map<number, Unit>();
@@ -18,8 +37,9 @@ export function tickCombat(state: GameState, spatialHash: SpatialHash): void {
     }
 
     const range    = getStat(UNIT_ATTACK_RANGE, attacker.type, attacker.tier);
-    const nearbyIds = spatialHash.query(attacker.x, attacker.y, range);
+    const nearbyIds = spatialHash.queryWrapped(attacker.x, attacker.y, range, MAP_WIDTH);
 
+    // Check buildings too (prefer units over buildings)
     let target: Unit | null = null;
     let bestScore = -1;
 
@@ -38,14 +58,55 @@ export function tickCombat(state: GameState, spatialHash: SpatialHash): void {
       if (score > bestScore) { bestScore = score; target = candidate; }
     }
 
-    if (!target) continue;
+    // If no unit target, attack nearby enemy buildings
+    if (!target) {
+      for (const building of state.buildings) {
+        if (building.owner === attacker.owner) continue;
+        const dx = building.x - attacker.x;
+        const dy = building.y - attacker.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist <= range) {
+          const dmg = getStat(UNIT_DAMAGE, attacker.type, attacker.tier);
+          building.hp -= dmg;
+          attacker.attackCooldown = getStat(UNIT_ATTACK_COOLDOWN, attacker.type, attacker.tier);
+          break;
+        }
+      }
+      // Remove destroyed buildings
+      state.buildings = state.buildings.filter(b => b.hp > 0);
+      continue;
+    }
+
     attacker.targetId = target.id;
 
     const dmg = computeDamage(attacker, target);
     target.hp -= dmg;
-
     attacker.attackCooldown = getStat(UNIT_ATTACK_COOLDOWN, attacker.type, attacker.tier);
     if (target.hp <= 0) toRemove.add(target.id);
+
+    // ---- Cleave: Large units deal 50% flat damage to all other nearby enemies ----
+    if (attacker.tier === Tier.Large) {
+      for (const nid of nearbyIds) {
+        if (nid === target.id || nid === attacker.id) continue;
+        const splash = unitMap.get(nid);
+        if (!splash || splash.owner === attacker.owner) continue;
+        const dx = splash.x - attacker.x;
+        const dy = splash.y - attacker.y;
+        if (dx * dx + dy * dy > range * range) continue;
+        const splashDmg = Math.floor(dmg * 0.5);
+        splash.hp -= splashDmg;
+        if (splash.hp <= 0) toRemove.add(splash.id);
+      }
+    }
+  }
+
+  // ---- Remove dead units + spawn Battle Scars for Large deaths ----
+  if (toRemove.size > 0) {
+    const dying = state.units.filter(u => toRemove.has(u.id));
+    for (const u of dying) {
+      if (u.tier === Tier.Large) spawnBattleScar(state, u);
+    }
+    state.units = state.units.filter(u => !toRemove.has(u.id));
   }
 
   // ---- Base auto-attack ----
@@ -53,7 +114,7 @@ export function tickCombat(state: GameState, spatialHash: SpatialHash): void {
     if (base.attackCooldown > 0) { base.attackCooldown--; continue; }
 
     const enemyOwner = base.owner === PlayerId.One ? PlayerId.Two : PlayerId.One;
-    const nearbyIds  = spatialHash.query(base.x, base.y, BASE_ATTACK_RANGE);
+    const nearbyIds  = spatialHash.queryWrapped(base.x, base.y, BASE_ATTACK_RANGE, MAP_WIDTH);
 
     let closest: Unit | null = null;
     let closestDist = Infinity;
@@ -70,12 +131,10 @@ export function tickCombat(state: GameState, spatialHash: SpatialHash): void {
     if (closest) {
       closest.hp -= BASE_DAMAGE;
       base.attackCooldown = BASE_ATTACK_COOLDOWN;
-      if (closest.hp <= 0) toRemove.add(closest.id);
+      if (closest.hp <= 0) {
+        if (closest.tier === Tier.Large) spawnBattleScar(state, closest);
+        state.units = state.units.filter(u => u.id !== closest!.id);
+      }
     }
-  }
-
-  // ---- Remove dead units ----
-  if (toRemove.size > 0) {
-    state.units = state.units.filter(u => !toRemove.has(u.id));
   }
 }

@@ -1,5 +1,5 @@
 import { Container, Graphics, Text } from "pixi.js";
-import { GameState, PlayerId } from "shared";
+import { GameState, PlayerId, BuildingType } from "shared";
 
 class PlayerHUD {
   container: Container;
@@ -44,6 +44,7 @@ export class UIRenderer {
   private winText: Text;
   private hintText: Text;
   private selectionText!: Text;
+  private placingText: Text;
   private screenW: () => number;
   private screenH: () => number;
 
@@ -65,8 +66,8 @@ export class UIRenderer {
 
     this.hintText = new Text({
       text:
-        "WASD/scroll: camera   |   Z/X/C: spawn Rock/Paper/Scissors   |   " +
-        "Click+drag: select   |   Right-click: move   |   U: fuse   |   Ctrl+1..9: assign group   |   1..9: recall",
+        "WASD/scroll: camera   |   Z/X/C: spawn   |   U: fuse   |   M: open middle (80g)   |   " +
+        "Q: SwapTower (60g)   |   E: MirrorGate (120g)   |   F: Refinery (100g)   →   right-click to place",
       style: { fill: 0x888888, fontSize: 12, fontFamily: "monospace" },
     });
     this.container.addChild(this.hintText);
@@ -77,6 +78,13 @@ export class UIRenderer {
     });
     this.container.addChild(this.selectionText);
 
+    this.placingText = new Text({
+      text: "",
+      style: { fill: 0x00ff88, fontSize: 16, fontFamily: "monospace", fontWeight: "bold" },
+    });
+    this.placingText.visible = false;
+    this.container.addChild(this.placingText);
+
     this.winText = new Text({
       text: "",
       style: { fill: 0xffffff, fontSize: 48, fontFamily: "monospace", fontWeight: "bold", align: "center" },
@@ -84,6 +92,16 @@ export class UIRenderer {
     this.winText.anchor.set(0.5);
     this.winText.visible = false;
     this.container.addChild(this.winText);
+  }
+
+  showPlacingMode(type: BuildingType | null): void {
+    if (type === null) {
+      this.placingText.visible = false;
+    } else {
+      const names = ["Swap Tower", "Mirror Gate", "Refinery"];
+      this.placingText.text = `Placing: ${names[type]} — right-click to place   [Esc cancels]`;
+      this.placingText.visible = true;
+    }
   }
 
   render(state: GameState, selectedCount: number = 0): void {
@@ -96,8 +114,11 @@ export class UIRenderer {
     this.hudP1.container.position.set(16, 16);
     this.hudP2.container.position.set(sw - 216, 16);
 
-    this.statsText.text = `Tick: ${state.tick}   Units: ${state.units.length}`;
+    const barrierStr = state.barrierOpen ? "MID: OPEN" : "MID: CLOSED";
+    this.statsText.text = `Tick: ${state.tick}   Units: ${state.units.length}   ${barrierStr}`;
     this.statsText.position.set(sw / 2 - this.statsText.width / 2, 20);
+
+    this.placingText.position.set(sw / 2 - this.placingText.width / 2, 60);
 
     this.hintText.position.set(16, sh - 26);
 
