@@ -2,7 +2,7 @@ import { Camera } from "../render/Camera.js";
 import { SelectionManager } from "./SelectionManager.js";
 import { CommandDispatcher } from "./CommandDispatcher.js";
 import { InputBackend } from "./InputBackend.js";
-import { UnitType, PlayerId, UNIT_RADIUS, getStat, Unit, BuildingType, MAP_WIDTH } from "shared";
+import { UnitType, PlayerId, UNIT_RADIUS, getStat, Unit, BuildingType, MAP_WIDTH, Building } from "shared";
 
 function wrappedDx(ax: number, bx: number): number {
   let d = ax - bx;
@@ -86,6 +86,27 @@ export class InputHandler {
   private onRightClick = (e: MouseEvent): void => {
     e.preventDefault();
     const world = this.camera.screenToWorldNormalized(e.clientX, e.clientY);
+
+    // Right-click on own SwapTower → cycle its target type (R→P→S→R)
+    const state = this.backend.getState();
+    if (state) {
+      const tower = state.buildings.find((b: Building) => {
+        if (b.type !== BuildingType.SwapTower || b.owner !== this.selection.humanPlayer) return false;
+        const dx = wrappedDx(b.x, world.x);
+        const dy = b.y - world.y;
+        return dx * dx + dy * dy < 400 * 400;
+      });
+      if (tower) {
+        const cycle: Record<UnitType, UnitType> = {
+          [UnitType.Rock]:     UnitType.Paper,
+          [UnitType.Paper]:    UnitType.Scissors,
+          [UnitType.Scissors]: UnitType.Rock,
+        };
+        this.dispatcher.setTowerType(tower.id, cycle[tower.setType ?? UnitType.Rock]);
+        return;
+      }
+    }
+
     if (this.placingBuilding !== null) {
       this.dispatcher.placeBuilding(this.placingBuilding, world.x, world.y);
       this.placingBuilding = null;

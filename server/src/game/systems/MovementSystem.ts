@@ -1,5 +1,5 @@
 import { GameState, ZoneOwner, ZoneType } from "shared";
-import { UNIT_SPEED, UNIT_RADIUS, MAP_WIDTH, MAP_HEIGHT, WAR_ZONE_DEPTH, LANE_SPEED_BUFF, getStat } from "shared";
+import { UNIT_SPEED, UNIT_RADIUS, MAP_WIDTH, MAP_HEIGHT, WAR_ZONE_DEPTH, BARRIER_MIDDLE_X_MIN, BARRIER_MIDDLE_X_MAX, LANE_SPEED_BUFF, getStat } from "shared";
 import { SpatialHash } from "../SpatialHash.js";
 
 function wrappedDx(ax: number, bx: number): number {
@@ -87,14 +87,18 @@ export function tickMovement(state: GameState, spatialHash: SpatialHash): void {
     unit.x += vx;
     unit.y += vy;
 
-    // ---- Barrier collision (horizontal line at MAP_HEIGHT/2, only in field area) ----
-    if (!state.barrierOpen) {
+    // ---- Barrier collision (horizontal line at MAP_HEIGHT/2) ----
+    // Three segments: two permanent walls + one breakable middle
+    {
       const barrierY = MAP_HEIGHT / 2;
-      const inField = unit.x > WAR_ZONE_DEPTH && unit.x < MAP_WIDTH - WAR_ZONE_DEPTH;
-      if (inField && ((prevY < barrierY && unit.y >= barrierY) || (prevY > barrierY && unit.y <= barrierY))) {
+      const ux = unit.x;
+      const inPermanent1 = ux > WAR_ZONE_DEPTH && ux < BARRIER_MIDDLE_X_MIN;
+      const inMiddle     = ux >= BARRIER_MIDDLE_X_MIN && ux <= BARRIER_MIDDLE_X_MAX;
+      const inPermanent2 = ux > BARRIER_MIDDLE_X_MAX && ux < MAP_WIDTH - WAR_ZONE_DEPTH;
+      const wallActive   = inPermanent1 || inPermanent2 || (inMiddle && !state.barrierOpen);
+      if (wallActive && ((prevY < barrierY && unit.y >= barrierY) || (prevY > barrierY && unit.y <= barrierY))) {
         unit.y = prevY;
         vy = 0;
-        // Also clamp target to same side of barrier to stop seek force from pushing through
         if (unit.targetY > barrierY && prevY < barrierY) unit.targetY = barrierY - radius;
         if (unit.targetY < barrierY && prevY > barrierY) unit.targetY = barrierY + radius;
       }

@@ -19,7 +19,7 @@ export const SPAWN_COST_T1 = 10;       // gold cost to spawn any T1 unit
 
 // ---- Merge ----
 export const MERGE_COUNT = 10;
-export const MERGE_RADIUS = 600;       // world-mm
+export const MERGE_RADIUS = 5_000;     // world-mm — covers full formation spread
 
 // ---- Base ----
 export const BASE_HP = 10_000;
@@ -83,14 +83,16 @@ export const ZONE_CAPTURE_RATE = 2;     // progress points per tick when units i
 export const ZONE_FULL = 100;           // |captureProgress| threshold to own a zone
 
 // ---- Barrier & lane ----
-export const BARRIER_BREAK_COST = 80;  // gold to open the middle
-export const LANE_SPEED_BUFF = 1.5;    // speed multiplier for units in owned midfield lane
+export const BARRIER_BREAK_COST = 80;     // gold to open the middle
+export const BARRIER_MIDDLE_X_MIN = 10_000; // start of breakable middle section
+export const BARRIER_MIDDLE_X_MAX = 14_000; // end of breakable middle section
+export const LANE_SPEED_BUFF = 1.5;       // speed multiplier for units in owned midfield lane
 
 // ---- Buildings ----
 export const BUILDING_STATS: Record<BuildingType, { hp: number; cost: number; conversionRadius: number; incomeBonus?: number }> = {
-  [BuildingType.SwapTower]:  { hp: 300, cost:  60, conversionRadius: 600 },
-  [BuildingType.MirrorGate]: { hp: 500, cost: 120, conversionRadius: 600 },
-  [BuildingType.Refinery]:   { hp: 400, cost: 100, conversionRadius:   0, incomeBonus: 3 },
+  [BuildingType.SwapTower]:  { hp: 300, cost:  60, conversionRadius: 1_500 },
+  [BuildingType.MirrorGate]: { hp: 500, cost: 120, conversionRadius: 1_500 },
+  [BuildingType.Refinery]:   { hp: 400, cost: 100, conversionRadius:     0, incomeBonus: 3 },
 };
 
 // ---- Render ----

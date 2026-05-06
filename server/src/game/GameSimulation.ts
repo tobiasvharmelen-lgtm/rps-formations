@@ -247,6 +247,7 @@ export class GameSimulation {
       y,
       hp: stats.hp,
       maxHp: stats.hp,
+      setType: bType === BuildingType.SwapTower ? UnitType.Rock : undefined,
       conversionRadius: stats.conversionRadius,
     });
   }

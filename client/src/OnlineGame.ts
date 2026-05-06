@@ -99,7 +99,12 @@ export class OnlineGame {
     this.selection.reconcile(state);
     this.renderer.update(dtSec);
     this.renderer.showPlacingMode(this.input.placingBuilding);
-    this.renderer.render(state, this.selection.selectedIds, this.input.dragBox);
+    this.renderer.render(
+      state,
+      this.selection.selectedIds,
+      this.input.dragBox,
+      ids => this.selection.set(ids),
+    );
   };
 
   stop(): void {

@@ -1,5 +1,5 @@
 import { Container, Graphics, Text } from "pixi.js";
-import { Building, BuildingType, MAP_WIDTH } from "shared";
+import { Building, BuildingType, UnitType, MAP_WIDTH } from "shared";
 import type { Camera } from "./Camera.js";
 
 const BUILDING_COLOR: Record<BuildingType, number> = {
@@ -12,6 +12,12 @@ const TYPE_LABEL: Record<BuildingType, string> = {
   [BuildingType.SwapTower]:  "SW",
   [BuildingType.MirrorGate]: "MG",
   [BuildingType.Refinery]:   "RF",
+};
+
+const SET_TYPE_SUFFIX: Record<UnitType, string> = {
+  [UnitType.Rock]:     ":R",
+  [UnitType.Paper]:    ":P",
+  [UnitType.Scissors]: ":S",
 };
 
 export class BuildingRenderer {
@@ -44,6 +50,13 @@ export class BuildingRenderer {
       for (const offset of camera.tileOffsets(b.x)) {
         const bx = b.x + offset;
 
+        // Conversion radius circle (drawn behind body)
+        if (b.conversionRadius > 0) {
+          this.gfx.circle(bx, b.y, b.conversionRadius)
+            .fill({ color: 0xffffff, alpha: 0.04 })
+            .stroke({ color, alpha: 0.3, width: 15 });
+        }
+
         this.gfx.rect(bx - size / 2, b.y - size / 2, size, size)
           .fill({ color, alpha: 0.7 })
           .stroke({ color: 0xffffff, alpha: 0.6, width: 20 });
@@ -57,7 +70,7 @@ export class BuildingRenderer {
         this.gfx.rect(barX, barY, barW * hpFrac, barH).fill({ color: hpFrac > 0.5 ? 0x00cc44 : 0xcc4400 });
       }
 
-      // Label at canonical x
+      // Label at canonical x — SwapTower shows active set type
       if (!this.labels.has(b.id)) {
         const label = new Text({
           text: TYPE_LABEL[b.type],
@@ -68,6 +81,9 @@ export class BuildingRenderer {
         this.labels.set(b.id, label);
       }
       const lbl = this.labels.get(b.id)!;
+      const suffix = b.type === BuildingType.SwapTower && b.setType !== undefined
+        ? SET_TYPE_SUFFIX[b.setType] : "";
+      lbl.text = TYPE_LABEL[b.type] + suffix;
       const canonX = b.x + Math.round((camera.x - b.x) / MAP_WIDTH) * MAP_WIDTH;
       lbl.position.set(canonX, b.y);
     }

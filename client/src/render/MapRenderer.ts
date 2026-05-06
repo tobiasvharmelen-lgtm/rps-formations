@@ -1,5 +1,5 @@
 import { Container, Graphics } from "pixi.js";
-import { MAP_WIDTH, MAP_HEIGHT, WAR_ZONE_DEPTH } from "shared";
+import { MAP_WIDTH, MAP_HEIGHT, WAR_ZONE_DEPTH, BARRIER_MIDDLE_X_MIN, BARRIER_MIDDLE_X_MAX } from "shared";
 import type { Camera } from "./Camera.js";
 
 // Draw this many tile copies in each direction so any zoom level is covered.
@@ -24,8 +24,9 @@ export class MapRenderer {
     if (!this.bgDrawn) {
       this.bgDrawn = true;
       this._drawBackground();
-    }
-    if (barrierOpen !== this.barrierWasOpen) {
+      this._drawBarrier(barrierOpen);
+      this.barrierWasOpen = barrierOpen;
+    } else if (barrierOpen !== this.barrierWasOpen) {
       this.barrierWasOpen = barrierOpen;
       this._drawBarrier(barrierOpen);
     }
@@ -74,23 +75,30 @@ export class MapRenderer {
   private _drawBarrier(open: boolean): void {
     const g = this.barrierGfx;
     g.clear();
-    if (open) return;
 
     const y = MAP_HEIGHT / 2;
-    const dashLen = 600;
-    const gap = 300;
 
     for (let n = -TILE_RADIUS; n <= TILE_RADIUS; n++) {
       const ox = n * MAP_WIDTH;
-      const x0 = ox + WAR_ZONE_DEPTH;
-      const x1 = ox + MAP_WIDTH - WAR_ZONE_DEPTH;
-      let x = x0;
-      while (x < x1) {
-        const end = Math.min(x + dashLen, x1);
-        g.moveTo(x, y).lineTo(end, y);
-        x = end + gap;
+
+      // Permanent wall 1 (always blocks): WAR_ZONE_DEPTH → BARRIER_MIDDLE_X_MIN
+      g.moveTo(ox + WAR_ZONE_DEPTH, y).lineTo(ox + BARRIER_MIDDLE_X_MIN, y)
+        .stroke({ color: 0xaaaaaa, alpha: 0.85, width: 50 });
+
+      // Permanent wall 2 (always blocks): BARRIER_MIDDLE_X_MAX → MAP_WIDTH - WAR_ZONE_DEPTH
+      g.moveTo(ox + BARRIER_MIDDLE_X_MAX, y).lineTo(ox + MAP_WIDTH - WAR_ZONE_DEPTH, y)
+        .stroke({ color: 0xaaaaaa, alpha: 0.85, width: 50 });
+
+      // Breakable middle section (dashed yellow — only when not open)
+      if (!open) {
+        const midLen = BARRIER_MIDDLE_X_MAX - BARRIER_MIDDLE_X_MIN;
+        const segW = midLen / 5;
+        for (let s = 0; s < 5; s += 2) {
+          const sx = ox + BARRIER_MIDDLE_X_MIN + s * segW;
+          g.moveTo(sx, y).lineTo(sx + segW, y)
+            .stroke({ color: 0xffd700, alpha: 0.9, width: 50 });
+        }
       }
     }
-    g.stroke({ color: 0xff2222, alpha: 0.8, width: 50 });
   }
 }

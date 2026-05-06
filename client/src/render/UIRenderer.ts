@@ -1,5 +1,5 @@
 import { Container, Graphics, Text } from "pixi.js";
-import { GameState, PlayerId, BuildingType } from "shared";
+import { GameState, PlayerId, BuildingType, Unit } from "shared";
 
 class PlayerHUD {
   container: Container;
@@ -36,6 +36,113 @@ class PlayerHUD {
   }
 }
 
+const TYPE_COLORS  = [0xe74c3c, 0x3498db, 0x2ecc71]; // Rock, Paper, Scissors
+const TYPE_NAMES   = ["Rock", "Paper", "Scissors"];
+const TIER_NAMES   = ["T1", "T2", "T3"];
+const TYPE_ICONS   = ["●", "■", "▲"];
+
+interface PanelRow {
+  bg: Graphics;
+  label: Text;
+  count: Text;
+}
+
+class SelectionPanel {
+  container: Container;
+  private rows: PanelRow[] = [];
+  private prevKey = "";
+
+  readonly ROW_H = 38;
+  readonly ROW_W = 240;
+  readonly GAP   = 4;
+
+  constructor() {
+    this.container = new Container();
+    this.container.visible = false;
+  }
+
+  get totalHeight(): number {
+    return this.rows.length * (this.ROW_H + this.GAP);
+  }
+
+  update(
+    units: Unit[],
+    selectedIds: ReadonlySet<number>,
+    onSubSelect: (ids: number[]) => void,
+  ): void {
+    if (selectedIds.size === 0) {
+      this.container.visible = false;
+      this.prevKey = "";
+      return;
+    }
+
+    // Group selected units by type+tier
+    const groupMap = new Map<string, { type: number; tier: number; ids: number[] }>();
+    for (const u of units) {
+      if (!selectedIds.has(u.id)) continue;
+      const key = `${u.type}-${u.tier}`;
+      if (!groupMap.has(key)) groupMap.set(key, { type: u.type, tier: u.tier, ids: [] });
+      groupMap.get(key)!.ids.push(u.id);
+    }
+    const groups = [...groupMap.values()].sort((a, b) => a.type - b.type || a.tier - b.tier);
+    const newKey = groups.map(g => `${g.type}-${g.tier}:${g.ids.length}`).join(",");
+
+    if (newKey !== this.prevKey) {
+      this.prevKey = newKey;
+      this._rebuild(groups, onSubSelect);
+    }
+
+    this.container.visible = true;
+  }
+
+  private _rebuild(
+    groups: Array<{ type: number; tier: number; ids: number[] }>,
+    onSubSelect: (ids: number[]) => void,
+  ): void {
+    // Remove old rows
+    for (const row of this.rows) {
+      this.container.removeChild(row.bg, row.label, row.count);
+      row.bg.destroy();
+      row.label.destroy();
+      row.count.destroy();
+    }
+    this.rows = [];
+
+    const { ROW_H, ROW_W, GAP } = this;
+
+    for (let i = 0; i < groups.length; i++) {
+      const g = groups[i];
+      const y = i * (ROW_H + GAP);
+      const color = TYPE_COLORS[g.type];
+      const ids = [...g.ids];
+
+      const bg = new Graphics();
+      bg.rect(0, y, ROW_W, ROW_H).fill({ color: 0x111130, alpha: 0.88 });
+      bg.rect(0, y, 5, ROW_H).fill({ color, alpha: 1 });
+      bg.rect(0, y, ROW_W, ROW_H).stroke({ color: 0x334, width: 2, alpha: 0.9 });
+      bg.eventMode = "static";
+      bg.cursor = "pointer";
+      bg.on("pointerdown", () => onSubSelect(ids));
+
+      const label = new Text({
+        text: `${TYPE_ICONS[g.type]} ${TYPE_NAMES[g.type]} ${TIER_NAMES[g.tier]}`,
+        style: { fill: 0xffffff, fontSize: 15, fontFamily: "monospace" },
+      });
+      label.position.set(16, y + 10);
+
+      const count = new Text({
+        text: `×${g.ids.length}`,
+        style: { fill: 0xffd700, fontSize: 15, fontFamily: "monospace", fontWeight: "bold" },
+      });
+      count.anchor.set(1, 0);
+      count.position.set(ROW_W - 10, y + 10);
+
+      this.container.addChild(bg, label, count);
+      this.rows.push({ bg, label, count });
+    }
+  }
+}
+
 export class UIRenderer {
   container: Container;
   private hudP1: PlayerHUD;
@@ -43,8 +150,8 @@ export class UIRenderer {
   private statsText: Text;
   private winText: Text;
   private hintText: Text;
-  private selectionText!: Text;
   private placingText: Text;
+  private selectionPanel: SelectionPanel;
   private screenW: () => number;
   private screenH: () => number;
 
@@ -67,16 +174,11 @@ export class UIRenderer {
     this.hintText = new Text({
       text:
         "WASD/scroll: camera   |   Z/X/C: spawn   |   U: fuse   |   M: open middle (80g)   |   " +
-        "Q: SwapTower (60g)   |   E: MirrorGate (120g)   |   F: Refinery (100g)   →   right-click to place",
-      style: { fill: 0x888888, fontSize: 12, fontFamily: "monospace" },
+        "Q: SwapTower (60g)   |   E: MirrorGate (120g)   |   F: Refinery (100g)   →   right-click to place" +
+        "   |   right-click tower to cycle type",
+      style: { fill: 0x888888, fontSize: 11, fontFamily: "monospace" },
     });
     this.container.addChild(this.hintText);
-
-    this.selectionText = new Text({
-      text: "",
-      style: { fill: 0xffd700, fontSize: 14, fontFamily: "monospace", fontWeight: "bold" },
-    });
-    this.container.addChild(this.selectionText);
 
     this.placingText = new Text({
       text: "",
@@ -92,6 +194,9 @@ export class UIRenderer {
     this.winText.anchor.set(0.5);
     this.winText.visible = false;
     this.container.addChild(this.winText);
+
+    this.selectionPanel = new SelectionPanel();
+    this.container.addChild(this.selectionPanel.container);
   }
 
   showPlacingMode(type: BuildingType | null): void {
@@ -104,7 +209,11 @@ export class UIRenderer {
     }
   }
 
-  render(state: GameState, selectedCount: number = 0): void {
+  render(
+    state: GameState,
+    selectedIds: ReadonlySet<number>,
+    onSubSelect: (ids: number[]) => void,
+  ): void {
     const sw = this.screenW();
     const sh = this.screenH();
 
@@ -120,14 +229,13 @@ export class UIRenderer {
 
     this.placingText.position.set(sw / 2 - this.placingText.width / 2, 60);
 
-    this.hintText.position.set(16, sh - 26);
+    this.hintText.position.set(16, sh - 22);
 
-    if (selectedCount > 0) {
-      this.selectionText.text = `${selectedCount} selected`;
-      this.selectionText.position.set(16, sh - 50);
-      this.selectionText.visible = true;
-    } else {
-      this.selectionText.visible = false;
+    // Selection breakdown panel
+    this.selectionPanel.update(state.units, selectedIds, onSubSelect);
+    if (this.selectionPanel.container.visible) {
+      const panelH = this.selectionPanel.totalHeight;
+      this.selectionPanel.container.position.set(16, sh - 30 - panelH);
     }
 
     if (state.winnerId) {

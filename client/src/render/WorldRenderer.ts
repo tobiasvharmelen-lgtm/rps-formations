@@ -71,7 +71,12 @@ export class WorldRenderer {
     this.ui.showPlacingMode(type);
   }
 
-  render(state: GameState, selectedIds: ReadonlySet<number> = new Set(), dragBox?: DragBox): void {
+  render(
+    state: GameState,
+    selectedIds: ReadonlySet<number> = new Set(),
+    dragBox?: DragBox,
+    onSubSelect?: (ids: number[]) => void,
+  ): void {
     const cam = this.camera;
 
     if (state.tick !== this.prevTick) {
@@ -92,7 +97,7 @@ export class WorldRenderer {
     this.buildings.render(state.buildings, cam);
     this.units.render(state.units, cam);
     this.effects.render(cam);
-    this.ui.render(state, selectedIds.size);
+    this.ui.render(state, selectedIds, onSubSelect ?? (() => {}));
 
     if (dragBox) {
       this.selection.render(state, selectedIds, dragBox, cam);
