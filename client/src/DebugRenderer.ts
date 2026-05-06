@@ -1,5 +1,5 @@
 import {
-  GameState, Unit, UnitType, Tier, PlayerId, FormationShape,
+  GameState, Unit, UnitType, Tier, PlayerId,
   Zone, ZoneOwner, ZoneType, Base,
   MAP_WIDTH, MAP_HEIGHT, UNIT_RADIUS, ZONE_RADIUS, getStat,
 } from "shared";

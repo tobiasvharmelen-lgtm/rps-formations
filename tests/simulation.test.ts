@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { PlayerId, UnitType, Tier, InputType, GamePhase } from "../shared/src/types.js";
 import { GameSimulation } from "../server/src/game/GameSimulation.js";
 
@@ -31,6 +31,40 @@ describe("GameSimulation — spawn", () => {
     sim.applyInput(PlayerId.One, { seq: 1, type: InputType.SpawnUnit, spawnType: UnitType.Rock });
     expect(sim.state.units).toHaveLength(0);
   });
+
+  it("spawned unit has targetX/Y matching its spawn position", () => {
+    const sim = makeSim();
+    sim.applyInput(PlayerId.One, { seq: 1, type: InputType.SpawnUnit, spawnType: UnitType.Rock });
+    const u = sim.state.units[0];
+    expect(u.targetX).toBe(u.x);
+    expect(u.targetY).toBe(u.y);
+  });
+});
+
+describe("GameSimulation — MoveUnits", () => {
+  it("sets individual targetX/Y for each unit near the destination", () => {
+    const sim = makeSim();
+    sim.applyInput(PlayerId.One, { seq: 1, type: InputType.SpawnUnit, spawnType: UnitType.Rock });
+    sim.applyInput(PlayerId.One, { seq: 2, type: InputType.SpawnUnit, spawnType: UnitType.Rock });
+    const ids = sim.state.units.map(u => u.id);
+    sim.applyInput(PlayerId.One, { seq: 3, type: InputType.MoveUnits, unitIds: ids, destX: 5000, destY: 8000 });
+    for (const u of sim.state.units) {
+      // Each target is within 500mm of the click (offset radius is sqrt(2)*120 ≈ 170mm max for 2 units)
+      const dx = u.targetX - 5000;
+      const dy = u.targetY - 8000;
+      expect(Math.sqrt(dx * dx + dy * dy)).toBeLessThan(500);
+    }
+  });
+
+  it("cannot move enemy units", () => {
+    const sim = makeSim();
+    sim.applyInput(PlayerId.Two, { seq: 1, type: InputType.SpawnUnit, spawnType: UnitType.Rock });
+    const enemyId = sim.state.units[0].id;
+    const originalTarget = { x: sim.state.units[0].targetX, y: sim.state.units[0].targetY };
+    sim.applyInput(PlayerId.One, { seq: 2, type: InputType.MoveUnits, unitIds: [enemyId], destX: 9999, destY: 9999 });
+    expect(sim.state.units[0].targetX).toBe(originalTarget.x);
+    expect(sim.state.units[0].targetY).toBe(originalTarget.y);
+  });
 });
 
 describe("GameSimulation — tick increments", () => {
@@ -40,22 +74,6 @@ describe("GameSimulation — tick increments", () => {
     expect(sim.state.tick).toBe(1);
     sim.tick(new Map());
     expect(sim.state.tick).toBe(2);
-  });
-});
-
-describe("GameSimulation — formation", () => {
-  it("creates a formation from selected units", () => {
-    const sim = makeSim();
-    for (let i = 0; i < 5; i++) {
-      sim.applyInput(PlayerId.One, { seq: i, type: InputType.SpawnUnit, spawnType: UnitType.Paper });
-    }
-    const unitIds = sim.state.units.map(u => u.id);
-    sim.applyInput(PlayerId.One, {
-      seq: 10, type: InputType.CreateFormation,
-      unitIds, unitType: UnitType.Paper,
-    });
-    expect(sim.state.formations).toHaveLength(1);
-    expect(sim.state.formations[0].unitIds).toHaveLength(5);
   });
 });
 

@@ -101,12 +101,7 @@ export class GameRoom {
   private validateOwnership(playerId: PlayerId, input: PlayerInput): boolean {
     const state = this.sim.state;
 
-    if (input.formationId) {
-      const f = state.formations.find(f => f.id === input.formationId);
-      if (f && f.owner !== playerId) return false;
-    }
-
-    if (input.type === InputType.CreateFormation && input.unitIds) {
+    if (input.type === InputType.MoveUnits && input.unitIds) {
       for (const uid of input.unitIds) {
         const u = state.units.find(u => u.id === uid);
         if (u && u.owner !== playerId) return false;

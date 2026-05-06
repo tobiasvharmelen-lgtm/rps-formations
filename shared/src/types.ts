@@ -17,12 +17,6 @@ export const enum PlayerId {
   Two = 2,
 }
 
-export const enum FormationShape {
-  Circle = 0,   // Rock
-  Square = 1,   // Paper
-  Triangle = 2, // Scissors
-}
-
 export const enum ZoneType {
   Circle = 0,
   Square = 1,
@@ -43,10 +37,8 @@ export const enum GamePhase {
 }
 
 export const enum InputType {
-  MoveFormation = 0,
-  CreateFormation = 1,
-  AttackMove = 2,
-  SpawnUnit = 3,
+  MoveUnits  = 0,
+  SpawnUnit  = 3,
   MergeUnits = 4,
 }
 
@@ -72,27 +64,11 @@ export interface Unit {
   /** Velocity in mm/tick */
   vx: number;
   vy: number;
-  formationId: number;  // 0 = unassigned
-  slotIndex: number;
-  attackCooldown: number; // ticks until next attack
-  targetId: number;       // 0 = no target
-}
-
-export interface Formation {
-  id: number;
-  owner: PlayerId;
-  type: UnitType;
-  tier: Tier;
-  shape: FormationShape;
-  /** Formation center in world mm */
-  anchorX: number;
-  anchorY: number;
-  /** Direction the formation faces (radians) */
-  facing: number;
-  unitIds: number[];
-  moving: boolean;
-  destX: number;
-  destY: number;
+  /** Individual steering destination assigned by right-click */
+  targetX: number;
+  targetY: number;
+  attackCooldown: number;
+  targetId: number;
 }
 
 export interface Base {
@@ -131,7 +107,6 @@ export interface GameState {
   countdown: number;
   players: [PlayerState, PlayerState];
   units: Unit[];
-  formations: Formation[];
   bases: [Base, Base];
   zones: Zone[];
   winnerId: PlayerId | 0;
@@ -143,13 +118,10 @@ export interface GameState {
 export interface PlayerInput {
   seq: number;
   type: InputType;
-  // MoveFormation / AttackMove
-  formationId?: number;
+  // MoveUnits
+  unitIds?: number[];
   destX?: number;
   destY?: number;
-  // CreateFormation
-  unitIds?: number[];
-  unitType?: UnitType;
   // SpawnUnit
   spawnType?: UnitType;
   // MergeUnits

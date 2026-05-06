@@ -1,14 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { UnitType, Tier, PlayerId } from "../shared/src/types.js";
 import { damageMultiplier, hasAdvantage, computeDamage } from "../shared/src/combat.js";
-import { FormationShape } from "../shared/src/types.js";
 import { Unit } from "../shared/src/types.js";
 
 function makeUnit(type: UnitType, tier = Tier.Small): Unit {
   return {
     id: 1, owner: PlayerId.One, type, tier,
     hp: 100, maxHp: 100, x: 0, y: 0, vx: 0, vy: 0,
-    formationId: 0, slotIndex: 0, attackCooldown: 0, targetId: 0,
+    targetX: 0, targetY: 0, attackCooldown: 0, targetId: 0,
   };
 }
 
@@ -60,40 +59,19 @@ describe("hasAdvantage", () => {
 
 describe("computeDamage", () => {
   it("Rock T1 vs Scissors T1: 30 damage (10 * 3.0)", () => {
-    const attacker = makeUnit(UnitType.Rock);
-    const defender = makeUnit(UnitType.Scissors);
-    expect(computeDamage(attacker, defender, null)).toBe(30);
+    expect(computeDamage(makeUnit(UnitType.Rock), makeUnit(UnitType.Scissors))).toBe(30);
   });
 
   it("Rock T1 vs Paper T1: 3 damage (floor(10 * 0.3))", () => {
-    const attacker = makeUnit(UnitType.Rock);
-    const defender = makeUnit(UnitType.Paper);
-    expect(computeDamage(attacker, defender, null)).toBe(3);
+    expect(computeDamage(makeUnit(UnitType.Rock), makeUnit(UnitType.Paper))).toBe(3);
   });
 
-  it("Rock T1 vs Rock T1: 10 damage (normal)", () => {
-    const attacker = makeUnit(UnitType.Rock);
-    const defender = makeUnit(UnitType.Rock);
-    expect(computeDamage(attacker, defender, null)).toBe(10);
-  });
-
-  it("Formation bonus applies when Rock is in Circle formation", () => {
-    const attacker = makeUnit(UnitType.Rock);
-    const defender = makeUnit(UnitType.Scissors);
-    // 10 * 3.0 * 1.25 = 37.5 → floor = 37
-    expect(computeDamage(attacker, defender, FormationShape.Circle)).toBe(37);
-  });
-
-  it("Formation bonus does NOT apply when Rock is in wrong formation", () => {
-    const attacker = makeUnit(UnitType.Rock);
-    const defender = makeUnit(UnitType.Scissors);
-    expect(computeDamage(attacker, defender, FormationShape.Square)).toBe(30);
+  it("Rock T1 vs Rock T1: 10 damage (neutral)", () => {
+    expect(computeDamage(makeUnit(UnitType.Rock), makeUnit(UnitType.Rock))).toBe(10);
   });
 
   it("Tier 2 units deal more damage", () => {
-    const attacker = makeUnit(UnitType.Rock, Tier.Medium);
-    const defender = makeUnit(UnitType.Scissors, Tier.Medium);
     // 80 * 3.0 = 240
-    expect(computeDamage(attacker, defender, null)).toBe(240);
+    expect(computeDamage(makeUnit(UnitType.Rock, Tier.Medium), makeUnit(UnitType.Scissors, Tier.Medium))).toBe(240);
   });
 });

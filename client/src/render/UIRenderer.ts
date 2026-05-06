@@ -76,7 +76,7 @@ export class UIRenderer {
     this.hintText = new Text({
       text:
         "WASD/scroll: camera   |   Z/X/C: spawn Rock/Paper/Scissors   |   " +
-        "Click+drag: select   |   Right-click: move   |   F: form   |   U: upgrade   |   Ctrl+1..9: assign group   |   1..9: recall",
+        "Click+drag: select   |   Right-click: move   |   U: fuse   |   Ctrl+1..9: assign group   |   1..9: recall",
       style: { fill: 0x888888, fontSize: 12, fontFamily: "monospace" },
     });
     this.container.addChild(this.hintText);
@@ -106,7 +106,7 @@ export class UIRenderer {
     this.hudP1.container.position.set(16, 16);
     this.hudP2.container.position.set(sw - 216, 16);
 
-    this.statsText.text = `Tick: ${state.tick}   Units: ${state.units.length}   Formations: ${state.formations.length}`;
+    this.statsText.text = `Tick: ${state.tick}   Units: ${state.units.length}`;
     this.statsText.position.set(sw / 2 - this.statsText.width / 2, 20);
 
     this.hintText.position.set(16, sh - 26);

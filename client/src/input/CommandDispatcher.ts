@@ -21,12 +21,7 @@ export class CommandDispatcher {
     const player = state.players[playerId - 1];
     if (player.resources[type] < SPAWN_COST_T1) return false;
 
-    // For local mode the dispatcher knows the exact playerId; for online mode
-    // we always send as our own playerId (server validates).
     if (playerId !== this.backend.playerId) {
-      // Spawning for the opponent in online mode is not allowed; only used in local sandbox
-      // (LocalBackend ignores the field and always uses its own playerId, but for spawn-for-opponent
-      // testing we cheat by directly applying inputs via the underlying sim if available).
       const localSim = (this.backend as any).sim;
       if (localSim?.applyInput) {
         localSim.applyInput(playerId, { seq: 0, type: InputType.SpawnUnit, spawnType: type });
@@ -39,67 +34,21 @@ export class CommandDispatcher {
     return true;
   }
 
-  /** Form a formation from the currently-selected units.
-   *  Mixed selections produce one formation per type (per spec). */
-  formFormation(): boolean {
-    const state = this.backend.getState();
-    if (!state) return false;
-
-    const selected = state.units.filter(u => this.selection.selectedIds.has(u.id));
-    if (selected.length === 0) return false;
-
-    const byType = new Map<UnitType, number[]>();
-    for (const u of selected) {
-      let g = byType.get(u.type);
-      if (!g) { g = []; byType.set(u.type, g); }
-      g.push(u.id);
-    }
-
-    let any = false;
-    for (const [type, ids] of byType) {
-      if (ids.length === 0) continue;
-      this.backend.send({ type: InputType.CreateFormation, unitIds: ids, unitType: type });
-      any = true;
-    }
-    return any;
-  }
-
-  /** Right-click move command. If no formation exists yet, auto-form one first. */
+  /** Right-click move: send a single MoveUnits command with all selected unit IDs. */
   moveSelected(destX: number, destY: number): boolean {
     const state = this.backend.getState();
     if (!state) return false;
 
-    const selectedUnits = state.units.filter(u => this.selection.selectedIds.has(u.id));
-    if (selectedUnits.length === 0) return false;
+    const ids = state.units
+      .filter(u => this.selection.selectedIds.has(u.id))
+      .map(u => u.id);
+    if (ids.length === 0) return false;
 
-    const formationIds = new Set<number>();
-    let unassigned = 0;
-    for (const u of selectedUnits) {
-      if (u.formationId) formationIds.add(u.formationId);
-      else unassigned++;
-    }
-
-    if (formationIds.size === 0 && unassigned > 0) {
-      this.formFormation();
-      // Note: formation IDs assigned by the server; for online mode the move command
-      // arriving the same tick won't see those formations yet. The user can re-issue
-      // the move next click. (LocalBackend applies synchronously so this works.)
-      const fresh = this.backend.getState();
-      if (fresh) {
-        for (const u of fresh.units.filter(u => this.selection.selectedIds.has(u.id))) {
-          if (u.formationId) formationIds.add(u.formationId);
-        }
-      }
-    }
-
-    if (formationIds.size === 0) return false;
-
-    for (const fid of formationIds) {
-      this.backend.send({ type: InputType.MoveFormation, formationId: fid, destX, destY });
-    }
+    this.backend.send({ type: InputType.MoveUnits, unitIds: ids, destX, destY });
     return true;
   }
 
+  /** Fuse: emit one MergeUnits command per valid cluster of 10, exhausting the selection. */
   upgradeSelected(): boolean {
     const state = this.backend.getState();
     if (!state) return false;
@@ -116,22 +65,30 @@ export class CommandDispatcher {
       g.push(u);
     }
 
+    let any = false;
     for (const group of groups.values()) {
       if (group.length < MERGE_COUNT) continue;
-      const seed = group[0];
-      const cluster = group.filter(u => {
-        const dx = u.x - seed.x;
-        const dy = u.y - seed.y;
-        return dx * dx + dy * dy <= MERGE_RADIUS * MERGE_RADIUS;
-      });
-      if (cluster.length >= MERGE_COUNT) {
-        this.backend.send({
-          type: InputType.MergeUnits,
-          mergeUnitIds: cluster.slice(0, MERGE_COUNT).map(u => u.id),
+
+      const remaining = [...group];
+      while (remaining.length >= MERGE_COUNT) {
+        const seed    = remaining[0];
+        const cluster = remaining.filter(u => {
+          const dx = u.x - seed.x;
+          const dy = u.y - seed.y;
+          return dx * dx + dy * dy <= MERGE_RADIUS * MERGE_RADIUS;
         });
-        return true;
+
+        if (cluster.length < MERGE_COUNT) { remaining.shift(); continue; }
+
+        const toMerge   = cluster.slice(0, MERGE_COUNT);
+        const mergedIds = new Set(toMerge.map(u => u.id));
+        this.backend.send({ type: InputType.MergeUnits, mergeUnitIds: toMerge.map(u => u.id) });
+        for (let i = remaining.length - 1; i >= 0; i--) {
+          if (mergedIds.has(remaining[i].id)) remaining.splice(i, 1);
+        }
+        any = true;
       }
     }
-    return false;
+    return any;
   }
 }

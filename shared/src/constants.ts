@@ -17,10 +17,6 @@ export const INCOME_TICK_EVERY = 20;   // game ticks between income ticks (1/sec
 export const INCOME_PER_UNIT = 1;      // matching resource pts per unit per income tick
 export const SPAWN_COST_T1 = 10;       // deducted from matching resource pool
 
-// ---- Formation ----
-export const FORMATION_SETTLE_DELAY_TICKS = Math.round(1.5 * TICK_RATE);
-export const FORMATION_BONUS = 1.25;   // damage multiplier when in correct shape
-
 // ---- Merge ----
 export const MERGE_COUNT = 10;
 export const MERGE_RADIUS = 600;       // world-mm
@@ -70,13 +66,6 @@ export const UNIT_RADIUS: readonly [number, number, number][] = [
   [80, 160, 280],
   [80, 160, 280],
   [80, 160, 280],
-] as const;
-
-/** Inter-slot spacing within a formation, per tier */
-export const SLOT_SPACING: readonly [number, number, number][] = [
-  [200, 380, 650],
-  [200, 380, 650],
-  [200, 380, 650],
 ] as const;
 
 // ---- Combat multiplier table ----

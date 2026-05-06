@@ -139,7 +139,6 @@ export class InputHandler {
     if (key === "z") this.handleSpawn(UnitType.Rock, e.shiftKey);
     else if (key === "x") this.handleSpawn(UnitType.Paper, e.shiftKey);
     else if (key === "c") this.handleSpawn(UnitType.Scissors, e.shiftKey);
-    else if (key === "f") this.dispatcher.formFormation();
     else if (key === "u") this.dispatcher.upgradeSelected();
     else if (/^[1-9]$/.test(key)) {
       const n = parseInt(key, 10);
