@@ -1,6 +1,7 @@
 import { Container, Graphics, Text } from "pixi.js";
 import { Base, PlayerId, MAP_WIDTH, BASE_CAPTURE_TICKS } from "shared";
 import type { Camera } from "./Camera.js";
+import { playerColors } from "../playerColors.js";
 
 export class BaseRenderer {
   container: Container;
@@ -32,7 +33,7 @@ export class BaseRenderer {
     }
 
     bases.forEach((base, i) => {
-      const color = base.owner === PlayerId.One ? 0xe74c3c : 0x3498db;
+      const color = base.owner === PlayerId.One ? playerColors.p1 : playerColors.p2;
       const r = 500;
 
       for (const offset of camera.tileOffsets(base.x)) {

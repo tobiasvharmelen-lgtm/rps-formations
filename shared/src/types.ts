@@ -23,6 +23,13 @@ export const enum ZoneType {
   LeftBottom = 1,
   RightTop   = 2,
   RightBottom= 3,
+  Mid1       = 4,
+  Mid2       = 5,
+}
+
+export const enum MapType {
+  Cylinder    = 0,
+  Rectangular = 1,
 }
 
 export const enum ZoneOwner {
@@ -47,6 +54,7 @@ export const enum InputType {
   SetZoneType     = 8,
   UpgradeBuilding = 9,
   ContributeGate  = 10,
+  CheatGold       = 11,
 }
 
 export const enum BuildingType {
@@ -91,6 +99,8 @@ export interface Unit {
   slowed: boolean;
   /** Queued waypoints for ctrl+right-click movement sequences */
   waypointQueue?: { x: number; y: number }[];
+  /** True when target was set by auto-aggro rather than a player command */
+  isAggro?: boolean;
 }
 
 export interface Base {
@@ -164,6 +174,20 @@ export interface Gate {
   p2Open: boolean;
 }
 
+export interface LobbyChoice {
+  colorIndex: number;        // 0–5
+  incomeMultiplier: number;  // 0.5 | 1 | 1.5 | 2 | 3
+  mapType: MapType;
+  ready: boolean;
+}
+
+export interface GameConfig {
+  mapType?: MapType;
+  incomeMultiplier?: number;
+  p1Color?: number;
+  p2Color?: number;
+}
+
 export interface GameState {
   tick: number;
   phase: GamePhase;
@@ -176,7 +200,15 @@ export interface GameState {
   mergeEvents: MergeEvent[];
   buildings: Building[];
   terrain: Terrain[];
-  gates: [Gate, Gate];
+  gates: Gate[];
+  /** Which map layout is active */
+  mapType: MapType;
+  /** Gold income multiplier (set from lobby) */
+  incomeMultiplier: number;
+  /** P1 chosen team color hex */
+  p1Color: number;
+  /** P2 chosen team color hex */
+  p2Color: number;
 }
 
 // ---- Network inputs ----

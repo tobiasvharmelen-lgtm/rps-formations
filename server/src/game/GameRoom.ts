@@ -1,10 +1,17 @@
-import { PlayerId, PlayerInput, GamePhase, InputType } from "shared";
+import { PlayerId, PlayerInput, GamePhase, InputType, LobbyChoice, MapType, GameConfig } from "shared";
 import { MsgType } from "shared";
-import { TICK_MS, MAP_WIDTH, MAP_HEIGHT } from "shared";
+import { TICK_MS, MAP_WIDTH, MAP_HEIGHT, LOBBY_COLORS } from "shared";
 import { Connection } from "../net/Connection.js";
 import { GameSimulation } from "./GameSimulation.js";
 
 const MAX_INPUTS_PER_TICK = 10;
+
+const defaultLobbyChoice = (): LobbyChoice => ({
+  colorIndex: 0,
+  incomeMultiplier: 1,
+  mapType: MapType.Cylinder,
+  ready: false,
+});
 
 export class GameRoom {
   readonly id: string;
@@ -13,6 +20,10 @@ export class GameRoom {
   private tickInterval: ReturnType<typeof setInterval> | null = null;
   private expectedNextTick = 0;
   private inputsThisTick = new Map<PlayerId, number>();
+  private lobbyChoices = new Map<PlayerId, LobbyChoice>([
+    [PlayerId.One, defaultLobbyChoice()],
+    [PlayerId.Two, { ...defaultLobbyChoice(), colorIndex: 1 }],
+  ]);
   onEnd?: () => void;
 
   constructor(id: string, p1: Connection, p2: Connection) {
@@ -21,6 +32,9 @@ export class GameRoom {
 
     this.addPlayer(p1, PlayerId.One);
     this.addPlayer(p2, PlayerId.Two);
+
+    // Broadcast initial lobby state to both players
+    this.broadcastLobbyState();
   }
 
   private addPlayer(conn: Connection, playerId: PlayerId): void {
@@ -32,6 +46,47 @@ export class GameRoom {
       type: MsgType.S_MATCH_FOUND,
       roomId: this.id,
     });
+  }
+
+  handleLobbyUpdate(playerId: PlayerId, choice: Partial<LobbyChoice>): void {
+    const current = this.lobbyChoices.get(playerId)!;
+    this.lobbyChoices.set(playerId, { ...current, ...choice, ready: false });
+    this.broadcastLobbyState();
+  }
+
+  handleLobbyReady(playerId: PlayerId): void {
+    const current = this.lobbyChoices.get(playerId)!;
+    this.lobbyChoices.set(playerId, { ...current, ready: true });
+    this.broadcastLobbyState();
+
+    const p1 = this.lobbyChoices.get(PlayerId.One)!;
+    const p2 = this.lobbyChoices.get(PlayerId.Two)!;
+    if (p1.ready && p2.ready) {
+      const config: GameConfig = {
+        mapType: p1.mapType,
+        incomeMultiplier: p1.incomeMultiplier,
+        p1Color: LOBBY_COLORS[p1.colorIndex]?.hex ?? LOBBY_COLORS[0].hex,
+        p2Color: LOBBY_COLORS[p2.colorIndex]?.hex ?? LOBBY_COLORS[1].hex,
+      };
+      this.startWithConfig(config);
+    }
+  }
+
+  private broadcastLobbyState(): void {
+    const p1 = this.lobbyChoices.get(PlayerId.One)!;
+    const p2 = this.lobbyChoices.get(PlayerId.Two)!;
+    for (const conn of this.connections.values()) {
+      conn.send({ type: MsgType.S_LOBBY_STATE, p1, p2 });
+    }
+  }
+
+  private startWithConfig(config: GameConfig): void {
+    this.sim = new GameSimulation(config);
+    this.sim.start();
+    this.broadcastState();
+
+    this.expectedNextTick = Date.now() + TICK_MS;
+    this.tickInterval = setInterval(() => this.runTick(), TICK_MS);
   }
 
   start(): void {

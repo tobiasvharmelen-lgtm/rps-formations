@@ -1,6 +1,7 @@
 import { Container, Graphics, Text } from "pixi.js";
 import { Building, BuildingType, UnitType, Gate, MAP_WIDTH, GATE_UNIT_COST, GATE_RADIUS } from "shared";
 import type { Camera } from "./Camera.js";
+import { playerColors } from "../playerColors.js";
 
 const BUILDING_COLOR: Record<BuildingType, number> = {
   [BuildingType.SwapTower]:  0xf1c40f,
@@ -45,10 +46,10 @@ export class BuildingRenderer {
         // Background circle
         g.circle(gx, gy, r).fill({ color: 0x111133, alpha: 0.85 }).stroke({ color: 0x6666aa, alpha: 0.7, width: 25 });
 
-        // P1 progress arc (red)
-        this._drawArc(g, gx, gy, r - 200, gate.p1Open ? 1 : gate.p1Units / GATE_UNIT_COST, 0xe74c3c, true);
-        // P2 progress arc (blue, drawn on inner ring)
-        this._drawArc(g, gx, gy, r - 500, gate.p2Open ? 1 : gate.p2Units / GATE_UNIT_COST, 0x3498db, false);
+        // P1 progress arc
+        this._drawArc(g, gx, gy, r - 200, gate.p1Open ? 1 : gate.p1Units / GATE_UNIT_COST, playerColors.p1, true);
+        // P2 progress arc (drawn on inner ring)
+        this._drawArc(g, gx, gy, r - 500, gate.p2Open ? 1 : gate.p2Units / GATE_UNIT_COST, playerColors.p2, false);
       }
     }
   }

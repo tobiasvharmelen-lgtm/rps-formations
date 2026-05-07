@@ -6,28 +6,38 @@ export const TICK_MS = 1000 / TICK_RATE;
 export const COUNTDOWN_TICKS = 3 * TICK_RATE; // 3-second countdown
 
 // ---- Map ----
-export const MAP_WIDTH = 120_000;
-export const MAP_HEIGHT = 16_000;
+export const MAP_WIDTH = 180_000;
+export const MAP_HEIGHT = 24_000;
 
 // Single horizontal barrier through both middle areas (not through bases)
-export const MIDDLE_BARRIER_Y    = 8_000;   // y position of the barrier (MAP_HEIGHT / 2)
-export const BARRIER_LEFT_START  = 6_000;   // barrier begins after P1 home
-export const BARRIER_LEFT_END    = 54_000;  // barrier ends before P2 home
-export const BARRIER_RIGHT_START = 66_000;  // barrier resumes after P2 home
-export const BARRIER_RIGHT_END   = 114_000; // barrier ends before P1 right home
+export const MIDDLE_BARRIER_Y    = 12_000;   // y position of the barrier (MAP_HEIGHT / 2)
+export const BARRIER_LEFT_START  =  9_000;   // barrier begins after P1 home
+export const BARRIER_LEFT_END    = 81_000;   // barrier ends before P2 home
+export const BARRIER_RIGHT_START = 99_000;   // barrier resumes after P2 home
+export const BARRIER_RIGHT_END   = 171_000;  // barrier ends before P1 right home
 
 // Gate structures (on the barrier line, at center of each middle area)
-export const GATE_X_LEFT    = 30_000;  // left gate X
-export const GATE_X_RIGHT   = 90_000;  // right gate X
-export const GATE_HALF_WIDTH = 1_500;  // half-width of the passable gap when a gate is open
-export const GATE_RADIUS     = 1_800;  // radius of the gate circle (visual + unit contribution zone)
-export const GATE_UNIT_COST  = 50;     // units a player must contribute to open a gate
+export const GATE_X_LEFT    =  45_000;  // left gate X
+export const GATE_X_RIGHT   = 135_000;  // right gate X
+export const GATE_HALF_WIDTH =  2_250;  // half-width of the passable gap when a gate is open
+export const GATE_RADIUS     =  2_700;  // radius of the gate circle (visual + unit contribution zone)
+export const GATE_UNIT_COST  =     50;  // units a player must contribute to open a gate
 
 // Home territory boundaries (for rendering — symmetric: P1 at seam, P2 at center)
-export const P1_HOME_END          = 6_000;
-export const P1_HOME_RIGHT_START  = 114_000;
-export const P2_HOME_START        = 54_000;
-export const P2_HOME_END          = 66_000;
+export const P1_HOME_END          =   9_000;
+export const P1_HOME_RIGHT_START  = 171_000;
+export const P2_HOME_START        =  81_000;
+export const P2_HOME_END          =  99_000;
+
+// ---- Lobby colors ----
+export const LOBBY_COLORS: ReadonlyArray<{ name: string; hex: number }> = [
+  { name: "Red",    hex: 0xe74c3c },
+  { name: "Blue",   hex: 0x3498db },
+  { name: "Green",  hex: 0x2ecc71 },
+  { name: "Yellow", hex: 0xf1c40f },
+  { name: "Purple", hex: 0x9b59b6 },
+  { name: "Orange", hex: 0xe67e22 },
+];
 
 // ---- Economy ----
 export const STARTING_RESOURCES = 500; // shared gold pool

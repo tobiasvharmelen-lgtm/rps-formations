@@ -6,6 +6,7 @@ interface DeathFx {
   x: number;
   y: number;
   type: number;
+  tier: number;
   age: number;
   duration: number;
 }
@@ -32,7 +33,7 @@ export class EffectsRenderer {
   trackDeaths(prevUnits: Map<number, Unit>, currentUnitIds: Set<number>): void {
     for (const [id, unit] of prevUnits) {
       if (!currentUnitIds.has(id)) {
-        this.deaths.push({ x: unit.x, y: unit.y, type: unit.type, age: 0, duration: 12 });
+        this.deaths.push({ x: unit.x, y: unit.y, type: unit.type, tier: unit.tier, age: 0, duration: 12 });
       }
     }
   }
@@ -49,10 +50,11 @@ export class EffectsRenderer {
       const fx = this.deaths[i];
       const t = fx.age / fx.duration;
       if (t >= 1) { this.deaths.splice(i, 1); continue; }
-      const r = 80 + 200 * t;
+      const sizeScale = fx.tier === 2 ? 2 : 1;
+      const r = (80 + 200 * t) * sizeScale;
       const alpha = 1 - t;
       for (const offset of camera.tileOffsets(fx.x)) {
-        g.circle(fx.x + offset, fx.y, r).stroke({ color: 0xffffff, alpha: alpha * 0.6, width: 12 });
+        g.circle(fx.x + offset, fx.y, r).stroke({ color: 0xffffff, alpha: alpha * 0.6, width: 12 * sizeScale });
       }
       fx.age++;
     }

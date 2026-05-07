@@ -54,8 +54,6 @@ export class WorldRenderer {
     );
     this.pixi.uiLayer.addChild(this.ui.container, this.selection.screenContainer);
 
-    this.map.render();
-
     window.addEventListener("resize", () => {
       this.camera.fitToView();
     });
@@ -78,8 +76,10 @@ export class WorldRenderer {
     onSubSelect?: (ids: number[]) => void,
     selectedBuildingId?: number | null,
     onUpgrade?: (buildingId: number) => void,
+    onFuse?: (ids: number[]) => void,
   ): void {
     const cam = this.camera;
+    cam.setMapType(state.mapType);
 
     if (state.tick !== this.prevTick) {
       const currentIds = new Set(state.units.map(u => u.id));
@@ -92,7 +92,7 @@ export class WorldRenderer {
       for (const u of state.units) this.prevUnits.set(u.id, { ...u });
     }
 
-    this.map.render(cam);
+    this.map.render(cam, state);
     this.terrain.render(state.terrain, cam);
     this.zones.render(state.zones, cam);
     this.bases.render(state.bases, cam);
@@ -100,7 +100,7 @@ export class WorldRenderer {
     this.buildings.renderGates(state.gates, cam);
     this.units.render(state.units, cam);
     this.effects.render(cam);
-    this.ui.render(state, selectedIds, onSubSelect ?? (() => {}), selectedBuildingId, onUpgrade);
+    this.ui.render(state, selectedIds, onSubSelect ?? (() => {}), selectedBuildingId, onUpgrade, onFuse);
 
     if (dragBox) {
       this.selection.render(state, selectedIds, dragBox, cam);

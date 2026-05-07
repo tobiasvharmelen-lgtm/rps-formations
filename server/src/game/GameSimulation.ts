@@ -1,11 +1,12 @@
 import {
   GameState, GamePhase, PlayerId, PlayerInput, InputType,
-  UnitType, Tier, Unit, ZoneType, BuildingType,
+  UnitType, Tier, Unit, ZoneType, BuildingType, MapType, GameConfig,
   UNIT_HP, UNIT_RADIUS, STARTING_RESOURCES, BASE_HP,
   ZONE_RADIUS, MAP_WIDTH, MAP_HEIGHT, SPAWN_COST_T1, getStat,
   MERGE_COUNT, MERGE_RADIUS, BUILDING_STATS,
   GATE_X_LEFT, GATE_X_RIGHT, GATE_RADIUS, GATE_UNIT_COST, MIDDLE_BARRIER_Y,
   BUILDING_UPGRADE_COSTS, BUILDING_UPGRADE_RADII, BASE_CAPTURE_TICKS,
+  LOBBY_COLORS,
 } from "shared";
 import { SpatialHash } from "./SpatialHash.js";
 import { tickEconomy } from "./systems/EconomySystem.js";
@@ -21,11 +22,10 @@ import { checkWin, resetWinState } from "./systems/WinCondition.js";
 let nextUnitId = 1;
 let nextMergedUnitId = 200_000;
 
-/** Places unit slotIndex into a concentric-ring formation around the destination.
- *  Guarantees slot spacing >= unitRadius*2.5 so units can settle without oscillating. */
+/** Places unit slotIndex into a concentric-ring formation around the destination. */
 function formationSlot(slotIndex: number, unitRadius: number): { dx: number; dy: number } {
   if (slotIndex === 0) return { dx: 0, dy: 0 };
-  const spacing = unitRadius * 3.5;
+  const spacing = unitRadius * 2.5;
   let ring = 1, accumulated = 1;
   while (true) {
     const slotsInRing = Math.floor(2 * Math.PI * ring);
@@ -39,7 +39,7 @@ function formationSlot(slotIndex: number, unitRadius: number): { dx: number; dy:
   }
 }
 
-function makeInitialState(): GameState {
+function makeCylinderState(config: GameConfig): GameState {
   return {
     tick: 0,
     phase: GamePhase.WaitingForPlayers,
@@ -50,14 +50,14 @@ function makeInitialState(): GameState {
     ],
     units: [],
     bases: [
-      { owner: PlayerId.One, x: 0,       y: MAP_HEIGHT / 2, hp: BASE_HP, maxHp: BASE_HP, attackCooldown: 0, captureProgress: 0 },
-      { owner: PlayerId.Two, x: 60_000,  y: MAP_HEIGHT / 2, hp: BASE_HP, maxHp: BASE_HP, attackCooldown: 0, captureProgress: 0 },
+      { owner: PlayerId.One, x: 0,            y: MAP_HEIGHT / 2, hp: BASE_HP, maxHp: BASE_HP, attackCooldown: 0, captureProgress: 0 },
+      { owner: PlayerId.Two, x: MAP_WIDTH / 2, y: MAP_HEIGHT / 2, hp: BASE_HP, maxHp: BASE_HP, attackCooldown: 0, captureProgress: 0 },
     ],
     zones: [
-      { type: ZoneType.LeftTop,    x: 30_000, y: 4_000,              radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
-      { type: ZoneType.LeftBottom, x: 30_000, y: MAP_HEIGHT - 4_000, radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
-      { type: ZoneType.RightTop,   x: 90_000, y: 4_000,              radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
-      { type: ZoneType.RightBottom,x: 90_000, y: MAP_HEIGHT - 4_000, radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
+      { type: ZoneType.LeftTop,    x:  45_000, y:  6_000,              radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
+      { type: ZoneType.LeftBottom, x:  45_000, y: MAP_HEIGHT - 6_000,  radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
+      { type: ZoneType.RightTop,   x: 135_000, y:  6_000,              radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
+      { type: ZoneType.RightBottom,x: 135_000, y: MAP_HEIGHT - 6_000,  radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
     ],
     winnerId: 0,
     mergeEvents: [],
@@ -67,15 +67,59 @@ function makeInitialState(): GameState {
       { id: nextMergedUnitId++, x: GATE_X_LEFT,  y: MIDDLE_BARRIER_Y, p1Units: 0, p2Units: 0, p1Open: false, p2Open: false },
       { id: nextMergedUnitId++, x: GATE_X_RIGHT, y: MIDDLE_BARRIER_Y, p1Units: 0, p2Units: 0, p1Open: false, p2Open: false },
     ],
+    mapType:          MapType.Cylinder,
+    incomeMultiplier: config.incomeMultiplier ?? 1,
+    p1Color:          config.p1Color ?? LOBBY_COLORS[0].hex,
+    p2Color:          config.p2Color ?? LOBBY_COLORS[1].hex,
   };
+}
+
+function makeRectangularState(config: GameConfig): GameState {
+  return {
+    tick: 0,
+    phase: GamePhase.WaitingForPlayers,
+    countdown: 0,
+    players: [
+      { id: PlayerId.One, resources: STARTING_RESOURCES },
+      { id: PlayerId.Two, resources: STARTING_RESOURCES },
+    ],
+    units: [],
+    bases: [
+      { owner: PlayerId.One, x:  9_000,            y: MAP_HEIGHT / 2, hp: BASE_HP, maxHp: BASE_HP, attackCooldown: 0, captureProgress: 0 },
+      { owner: PlayerId.Two, x: MAP_WIDTH - 9_000,  y: MAP_HEIGHT / 2, hp: BASE_HP, maxHp: BASE_HP, attackCooldown: 0, captureProgress: 0 },
+    ],
+    zones: [
+      { type: ZoneType.LeftTop,    x:  45_000, y:  7_000, radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
+      { type: ZoneType.LeftBottom, x:  60_000, y: 17_000, radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
+      { type: ZoneType.RightTop,   x:  90_000, y:  6_000, radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
+      { type: ZoneType.RightBottom,x: 120_000, y: 18_000, radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
+      { type: ZoneType.Mid1,       x:  50_000, y: 12_000, radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
+      { type: ZoneType.Mid2,       x: 135_000, y: 10_000, radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
+    ],
+    winnerId: 0,
+    mergeEvents: [],
+    buildings: [],
+    terrain: [],
+    gates: [],
+    mapType:          MapType.Rectangular,
+    incomeMultiplier: config.incomeMultiplier ?? 1,
+    p1Color:          config.p1Color ?? LOBBY_COLORS[0].hex,
+    p2Color:          config.p2Color ?? LOBBY_COLORS[1].hex,
+  };
+}
+
+function makeInitialState(config: GameConfig = {}): GameState {
+  return config.mapType === MapType.Rectangular
+    ? makeRectangularState(config)
+    : makeCylinderState(config);
 }
 
 export class GameSimulation {
   state: GameState;
   private spatialHash = new SpatialHash(600);
 
-  constructor() {
-    this.state = makeInitialState();
+  constructor(config: GameConfig = {}) {
+    this.state = makeInitialState(config);
     resetWinState();
   }
 
@@ -122,7 +166,12 @@ export class GameSimulation {
       case InputType.SetZoneType:     this.setZoneType(playerId, input);     break;
       case InputType.UpgradeBuilding: this.upgradeBuilding(playerId, input); break;
       case InputType.ContributeGate:  this.contributeGate(playerId, input);  break;
+      case InputType.CheatGold:       this.cheatGold(playerId);              break;
     }
+  }
+
+  private cheatGold(playerId: PlayerId): void {
+    this.state.players[playerId - 1].resources += 1000;
   }
 
   private spawnUnit(playerId: PlayerId, input: PlayerInput): void {
@@ -159,9 +208,9 @@ export class GameSimulation {
   }
 
   private moveUnits(playerId: PlayerId, input: PlayerInput): void {
-    const ids   = input.unitIds ?? [];
-    const destX = input.destX  ?? 0;
-    const destY = input.destY  ?? 0;
+    const ids    = input.unitIds ?? [];
+    const destX  = input.destX  ?? 0;
+    const destY  = input.destY  ?? 0;
     const append = input.appendWaypoint === true;
 
     const units: Unit[] = [];
@@ -170,15 +219,34 @@ export class GameSimulation {
       if (u) units.push(u);
     }
 
-    const maxRadius = units.reduce(
-      (m, u) => Math.max(m, getStat(UNIT_RADIUS, u.type, u.tier)), 80
+    // Sort big units first — they get inner ring slots, small units form outer rings
+    units.sort((a, b) =>
+      getStat(UNIT_RADIUS, b.type, b.tier) - getStat(UNIT_RADIUS, a.type, a.tier)
     );
 
-    for (let i = 0; i < units.length; i++) {
-      const u   = units[i];
-      const off = formationSlot(i, maxRadius);
-      const wx  = Math.max(0, Math.min(MAP_WIDTH,  destX + off.dx));
-      const wy  = Math.max(0, Math.min(MAP_HEIGHT, destY + off.dy));
+    const n = units.length;
+    for (let i = 0; i < n; i++) {
+      const u = units[i];
+      const r = getStat(UNIT_RADIUS, u.type, u.tier);
+      const off = formationSlot(i, r);
+
+      let wx = destX + off.dx;
+      let wy = destY + off.dy;
+
+      // Wall lineup: if formation slot is near a wall, spread units along the wall
+      const margin = r * 1.5;
+      if (wx < margin) {
+        wx = margin;
+        wy = destY + (i - (n - 1) / 2) * r * 2.5;
+      } else if (wx > MAP_WIDTH - margin) {
+        wx = MAP_WIDTH - margin;
+        wy = destY + (i - (n - 1) / 2) * r * 2.5;
+      }
+      wy = Math.max(margin, Math.min(MAP_HEIGHT - margin, wy));
+
+      // Player-issued move command clears aggro-pursuit flag
+      u.isAggro = false;
+
       if (append) {
         if (!u.waypointQueue) u.waypointQueue = [];
         if (u.waypointQueue.length < 8) u.waypointQueue.push({ x: wx, y: wy });
@@ -262,10 +330,11 @@ export class GameSimulation {
   }
 
   private buildingAreasOverlap(x: number, y: number, radius: number, excludeId?: number): boolean {
+    const wrap = this.state.mapType !== MapType.Rectangular;
     for (const b of this.state.buildings) {
       if (b.id === excludeId) continue;
       if (b.conversionRadius === 0) continue;
-      const dx = wrappedDx(x, b.x);
+      const dx = wrappedDx(x, b.x, wrap);
       const dy = y - b.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
       if (dist < radius + b.conversionRadius) return true;
@@ -357,7 +426,8 @@ export class GameSimulation {
   }
 }
 
-function wrappedDx(ax: number, bx: number): number {
+function wrappedDx(ax: number, bx: number, wrap = true): number {
+  if (!wrap) return ax - bx;
   let d = ax - bx;
   if (d >  MAP_WIDTH / 2) d -= MAP_WIDTH;
   if (d < -MAP_WIDTH / 2) d += MAP_WIDTH;

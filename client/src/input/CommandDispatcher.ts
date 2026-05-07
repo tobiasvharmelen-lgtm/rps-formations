@@ -83,6 +83,14 @@ export class CommandDispatcher {
     return true;
   }
 
+  /** Fuse a specific list of unit IDs (first 10 used). Called from Fuse button in selection panel. */
+  fuseGroup(ids: number[]): boolean {
+    const toMerge = ids.slice(0, 10);
+    if (toMerge.length < 10) return false;
+    this.backend.send({ type: InputType.MergeUnits, mergeUnitIds: toMerge });
+    return true;
+  }
+
   /** Fuse: emit one MergeUnits command per valid cluster of 10, exhausting the selection. */
   upgradeSelected(): boolean {
     const state = this.backend.getState();

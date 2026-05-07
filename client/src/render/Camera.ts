@@ -1,9 +1,10 @@
 import { Container } from "pixi.js";
 import { MAP_WIDTH, MAP_HEIGHT } from "shared";
+import { MapType } from "shared";
 
 const MIN_ZOOM = 0.02;
 const MAX_ZOOM = 0.5;
-export const cameraSettings = { panSpeed: 5000 }; // world-mm per second when key held
+export const cameraSettings = { panSpeed: 10_000 }; // world-mm per second when key held
 const ZOOM_FACTOR = 1.15;
 
 export class Camera {
@@ -17,6 +18,7 @@ export class Camera {
   /** Zoom factor: pixels per world-mm */
   zoom = 0.05;
 
+  private mapType: MapType = MapType.Cylinder;
   private keys = new Set<string>();
   private dragging = false;
   private dragStartScreen = { x: 0, y: 0 };
@@ -167,9 +169,13 @@ export class Camera {
   }
 
   private clamp(): void {
+    const sw = this.screenW();
     const sh = this.screenH();
     const halfH = sh / 2 / this.zoom;
-    // x is unclamped — horizontal scrolling is infinite (cylinder map)
+    if (this.mapType === MapType.Rectangular) {
+      const halfW = sw / 2 / this.zoom;
+      this.x = Math.max(halfW * 0.3, Math.min(MAP_WIDTH - halfW * 0.3, this.x));
+    }
     this.y = Math.max(halfH * 0.3, Math.min(MAP_HEIGHT - halfH * 0.3, this.y));
   }
 
@@ -185,6 +191,7 @@ export class Camera {
    * at several x positions to fill the cylinder viewport.
    */
   tileOffsets(objX: number): number[] {
+    if (this.mapType === MapType.Rectangular) return [0];
     const [left, right] = this.viewBoundsX();
     const nMin = Math.floor((left - objX) / MAP_WIDTH);
     const nMax = Math.ceil((right - objX) / MAP_WIDTH);
@@ -198,6 +205,10 @@ export class Camera {
     const sh = this.screenH();
     this.worldLayer.scale.set(this.zoom);
     this.worldLayer.position.set(sw / 2 - this.x * this.zoom, sh / 2 - this.y * this.zoom);
+  }
+
+  setMapType(t: MapType): void {
+    this.mapType = t;
   }
 
   screenToWorld(sx: number, sy: number): { x: number; y: number } {

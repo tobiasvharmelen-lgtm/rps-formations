@@ -1,4 +1,4 @@
-import { PlayerId, GameState, PlayerInput } from "./types.js";
+import { PlayerId, GameState, PlayerInput, LobbyChoice } from "./types.js";
 
 export const enum MsgType {
   // Server → Client
@@ -9,6 +9,7 @@ export const enum MsgType {
   S_GAME_OVER = 5,
   S_ERROR = 6,
   S_PONG = 7,
+  S_LOBBY_STATE = 8,
 
   // Client → Server
   C_JOIN_QUEUE = 20,
@@ -16,6 +17,8 @@ export const enum MsgType {
   C_INPUT = 22,
   C_RECONNECT = 23,
   C_PING = 24,
+  C_LOBBY_UPDATE = 25,
+  C_LOBBY_READY = 26,
 }
 
 export interface S_Hello {
@@ -59,6 +62,12 @@ export interface S_Pong {
   serverTime: number;
 }
 
+export interface S_LobbyState {
+  type: MsgType.S_LOBBY_STATE;
+  p1: LobbyChoice;
+  p2: LobbyChoice;
+}
+
 export interface C_JoinQueue {
   type: MsgType.C_JOIN_QUEUE;
   displayName?: string;
@@ -84,6 +93,15 @@ export interface C_Ping {
   clientTime: number;
 }
 
+export interface C_LobbyUpdate {
+  type: MsgType.C_LOBBY_UPDATE;
+  choice: Partial<LobbyChoice>;
+}
+
+export interface C_LobbyReady {
+  type: MsgType.C_LOBBY_READY;
+}
+
 export type ServerMessage =
   | S_Hello
   | S_MatchFound
@@ -91,11 +109,14 @@ export type ServerMessage =
   | S_InputAck
   | S_GameOver
   | S_Error
-  | S_Pong;
+  | S_Pong
+  | S_LobbyState;
 
 export type ClientMessage =
   | C_JoinQueue
   | C_LeaveQueue
   | C_Input
   | C_Reconnect
-  | C_Ping;
+  | C_Ping
+  | C_LobbyUpdate
+  | C_LobbyReady;

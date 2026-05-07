@@ -1,6 +1,7 @@
 import { Container, Graphics, Text } from "pixi.js";
 import { GameState, PlayerId, BuildingType, Building, Unit } from "shared";
 import { BUILDING_UPGRADE_COSTS } from "shared";
+import { playerColors } from "../playerColors.js";
 
 class PlayerHUD {
   container: Container;
@@ -13,7 +14,7 @@ class PlayerHUD {
     this.bg = new Graphics();
     this.container.addChild(this.bg);
 
-    const color = playerId === PlayerId.One ? 0xe74c3c : 0x3498db;
+    const color = playerId === PlayerId.One ? playerColors.p1 : playerColors.p2;
 
     this.label = new Text({
       text: `Player ${playerId}`,
@@ -70,6 +71,7 @@ class SelectionPanel {
     units: Unit[],
     selectedIds: ReadonlySet<number>,
     onSubSelect: (ids: number[]) => void,
+    onFuse?: (ids: number[]) => void,
   ): void {
     if (selectedIds.size === 0) {
       this.container.visible = false;
@@ -90,7 +92,7 @@ class SelectionPanel {
 
     if (newKey !== this.prevKey) {
       this.prevKey = newKey;
-      this._rebuild(groups, onSubSelect);
+      this._rebuild(groups, onSubSelect, onFuse);
     }
 
     this.container.visible = true;
@@ -99,6 +101,7 @@ class SelectionPanel {
   private _rebuild(
     groups: Array<{ type: number; tier: number; ids: number[] }>,
     onSubSelect: (ids: number[]) => void,
+    onFuse?: (ids: number[]) => void,
   ): void {
     // Remove old rows
     for (const row of this.rows) {
@@ -131,15 +134,34 @@ class SelectionPanel {
       });
       label.position.set(16, y + 10);
 
+      const countX = g.ids.length >= 10 && onFuse ? ROW_W - 90 : ROW_W - 10;
       const count = new Text({
         text: `×${g.ids.length}`,
         style: { fill: 0xffd700, fontSize: 15, fontFamily: "monospace", fontWeight: "bold" },
       });
       count.anchor.set(1, 0);
-      count.position.set(ROW_W - 10, y + 10);
+      count.position.set(countX, y + 10);
 
       this.container.addChild(bg, label, count);
       this.rows.push({ bg, label, count });
+
+      // Fuse button for groups with ≥10 units
+      if (g.ids.length >= 10 && onFuse) {
+        const fuseBtn = new Graphics();
+        fuseBtn.roundRect(ROW_W - 80, y + 5, 68, ROW_H - 10, 4)
+          .fill({ color: 0x225522 })
+          .stroke({ color: 0x44aa44, width: 1 });
+        fuseBtn.eventMode = "static";
+        fuseBtn.cursor = "pointer";
+        fuseBtn.on("pointerdown", (e) => { e.stopPropagation(); onFuse(ids); });
+
+        const fuseTxt = new Text({
+          text: "Fuse×10",
+          style: { fill: 0xffffff, fontSize: 11, fontFamily: "monospace" },
+        });
+        fuseTxt.position.set(ROW_W - 77, y + 11);
+        this.container.addChild(fuseBtn, fuseTxt);
+      }
     }
   }
 }
@@ -229,6 +251,7 @@ export class UIRenderer {
     onSubSelect: (ids: number[]) => void,
     selectedBuildingId?: number | null,
     onUpgrade?: (buildingId: number) => void,
+    onFuse?: (ids: number[]) => void,
   ): void {
     const sw = this.screenW();
     const sh = this.screenH();
@@ -247,7 +270,7 @@ export class UIRenderer {
     this.hintText.position.set(16, sh - 22);
 
     // Selection breakdown panel
-    this.selectionPanel.update(state.units, selectedIds, onSubSelect);
+    this.selectionPanel.update(state.units, selectedIds, onSubSelect, onFuse);
     if (this.selectionPanel.container.visible) {
       const panelH = this.selectionPanel.totalHeight;
       this.selectionPanel.container.position.set(16, sh - 30 - panelH);
@@ -262,7 +285,7 @@ export class UIRenderer {
     if (state.winnerId) {
       this.winText.visible = true;
       this.winText.text = `Player ${state.winnerId} wins!`;
-      const color = state.winnerId === PlayerId.One ? 0xe74c3c : 0x3498db;
+      const color = state.winnerId === PlayerId.One ? playerColors.p1 : playerColors.p2;
       this.winText.style.fill = color;
       this.winText.position.set(sw / 2, sh / 2);
     } else {

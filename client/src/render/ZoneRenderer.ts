@@ -1,19 +1,22 @@
 import { Container, Graphics, Text } from "pixi.js";
 import { Zone, ZoneType, ZoneOwner, UnitType, MAP_WIDTH } from "shared";
 import type { Camera } from "./Camera.js";
+import { playerColors } from "../playerColors.js";
 
 const ZONE_COLOR: Record<ZoneType, number> = {
   [ZoneType.LeftTop]:    0xf39c12,
   [ZoneType.LeftBottom]: 0xf39c12,
   [ZoneType.RightTop]:   0x9b59b6,
   [ZoneType.RightBottom]:0x9b59b6,
+  [ZoneType.Mid1]:       0x1abc9c,
+  [ZoneType.Mid2]:       0x1abc9c,
 };
 
-const OWNER_FILL: Record<ZoneOwner, { color: number; alpha: number }> = {
-  [ZoneOwner.Neutral]: { color: 0xffffff, alpha: 0.04 },
-  [ZoneOwner.Player1]: { color: 0xe74c3c, alpha: 0.18 },
-  [ZoneOwner.Player2]: { color: 0x3498db, alpha: 0.18 },
-};
+function ownerFill(owner: ZoneOwner): { color: number; alpha: number } {
+  if (owner === ZoneOwner.Player1) return { color: playerColors.p1, alpha: 0.18 };
+  if (owner === ZoneOwner.Player2) return { color: playerColors.p2, alpha: 0.18 };
+  return { color: 0xffffff, alpha: 0.04 };
+}
 
 const TYPE_ICONS = ["●", "■", "▲"]; // Rock, Paper, Scissors
 
@@ -43,8 +46,8 @@ export class ZoneRenderer {
 
       for (const offset of camera.tileOffsets(zone.x)) {
         const zx = zone.x + offset;
-        const color = ZONE_COLOR[zone.type];
-        const fill = OWNER_FILL[zone.owner];
+        const color = ZONE_COLOR[zone.type] ?? 0xf39c12;
+        const fill = ownerFill(zone.owner);
         const r = zone.radius;
 
         // Hexagon
@@ -67,10 +70,10 @@ export class ZoneRenderer {
         const center = barX + barW / 2;
         if (zone.captureProgress > 0) {
           const w = (zone.captureProgress / 100) * (barW / 2);
-          bg.rect(center, barY, w, barH).fill({ color: 0xe74c3c });
+          bg.rect(center, barY, w, barH).fill({ color: playerColors.p1 });
         } else if (zone.captureProgress < 0) {
           const w = (-zone.captureProgress / 100) * (barW / 2);
-          bg.rect(center - w, barY, w, barH).fill({ color: 0x3498db });
+          bg.rect(center - w, barY, w, barH).fill({ color: playerColors.p2 });
         }
         bg.moveTo(center, barY).lineTo(center, barY + barH).stroke({ color: 0xffffff, alpha: 0.5, width: 4 });
       }

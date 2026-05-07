@@ -53,9 +53,9 @@ Object.assign(speedRow.style, { display: "flex", alignItems: "center", gap: "10p
 
 const speedSlider = document.createElement("input");
 speedSlider.type = "range";
-speedSlider.min = "500";
-speedSlider.max = "15000";
-speedSlider.step = "500";
+speedSlider.min = "1000";
+speedSlider.max = "30000";
+speedSlider.step = "1000";
 speedSlider.value = String(cameraSettings.panSpeed);
 speedSlider.style.flex = "1";
 
@@ -72,7 +72,30 @@ speedRow.appendChild(speedSlider);
 speedRow.appendChild(speedDisplay);
 settingsPanel.appendChild(speedLabel);
 settingsPanel.appendChild(speedRow);
+
+// Gold cheat toggle
+const cheatRow = document.createElement("div");
+Object.assign(cheatRow.style, { display: "flex", alignItems: "center", gap: "8px" });
+const cheatCheck = document.createElement("input");
+cheatCheck.type = "checkbox";
+cheatCheck.id = "cheat-gold-toggle";
+const cheatLabel = document.createElement("label");
+cheatLabel.htmlFor = "cheat-gold-toggle";
+cheatLabel.textContent = "Gold Cheat (G key)";
+cheatRow.appendChild(cheatCheck);
+cheatRow.appendChild(cheatLabel);
+settingsPanel.appendChild(cheatRow);
+
 document.body.appendChild(settingsPanel);
+
+// G key: fire cheat gold when toggle is on
+window.addEventListener("keydown", (e) => {
+  if (e.key === "g" || e.key === "G") {
+    if (cheatCheck.checked) {
+      (window as unknown as Record<string, unknown>).__cheatGold?.();
+    }
+  }
+});
 
 settingsBtn.addEventListener("click", (e) => {
   e.stopPropagation();

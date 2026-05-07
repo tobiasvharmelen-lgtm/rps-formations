@@ -6,7 +6,7 @@ export function tickEconomy(state: GameState): void {
   if (state.tick % INCOME_TICK_EVERY !== 0) return;
 
   for (const player of state.players) {
-    const income = computeIncome(player, state.zones, state.units);
+    const income = computeIncome(player, state.zones, state.units) * state.incomeMultiplier;
     applyIncome(player, income);
   }
 

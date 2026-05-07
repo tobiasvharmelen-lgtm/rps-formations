@@ -1,4 +1,4 @@
-import { PlayerId, MsgType } from "shared";
+import { PlayerId, MsgType, InputType, LOBBY_COLORS } from "shared";
 import { ServerConnection } from "./net/ServerConnection.js";
 import { ClientSimulation } from "./net/ClientSimulation.js";
 import { NetworkBackend } from "./input/NetworkBackend.js";
@@ -6,6 +6,8 @@ import { SelectionManager } from "./input/SelectionManager.js";
 import { CommandDispatcher } from "./input/CommandDispatcher.js";
 import { InputHandler } from "./input/InputHandler.js";
 import { WorldRenderer } from "./render/WorldRenderer.js";
+import { LobbyScreen } from "./LobbyScreen.js";
+import { playerColors } from "./playerColors.js";
 
 function wsUrl(): string {
   const proto = location.protocol === "https:" ? "wss:" : "ws:";
@@ -24,6 +26,7 @@ export class OnlineGame {
   private rafId = 0;
   private lastFrameTime = 0;
   private canvas: HTMLCanvasElement | null = null;
+  private lobbyScreen: LobbyScreen | null = null;
 
   /** DOM overlay shown while connecting / waiting for a match. */
   private overlay: HTMLDivElement;
@@ -51,6 +54,11 @@ export class OnlineGame {
       this.dispatcher,
     );
 
+    // Expose gold cheat
+    (window as any).__cheatGold = () => {
+      this.backend.send({ type: InputType.CheatGold });
+    };
+
     // Status overlay text
     this.conn.onStatus(status => {
       if (status === "connecting" || status === "reconnecting") {
@@ -65,9 +73,40 @@ export class OnlineGame {
     this.conn.onMessage(msg => {
       if (msg.type === MsgType.S_HELLO) {
         this.selection.humanPlayer = msg.playerId;
-        this.setOverlayText("Match found! Starting…");
+        this.setOverlayText("Match found! Opening lobby…");
       }
+
+      if (msg.type === MsgType.S_LOBBY_STATE) {
+        const humanPlayer = this.selection.humanPlayer as 1 | 2;
+        if (!this.lobbyScreen) {
+          this.hideOverlay();
+          this.lobbyScreen = new LobbyScreen(
+            (choice) => {
+              // Send update to server
+              this.conn.send({ type: MsgType.C_LOBBY_UPDATE, choice });
+            },
+            () => {
+              // Send ready
+              this.conn.send({ type: MsgType.C_LOBBY_READY });
+            },
+            humanPlayer,
+          );
+        } else {
+          // Update opponent's display
+          const opponentChoice = humanPlayer === 1 ? msg.p2 : msg.p1;
+          this.lobbyScreen.updateOpponentChoice(opponentChoice);
+        }
+      }
+
       if (msg.type === MsgType.S_GAME_STATE && this.rafId === 0) {
+        // Apply colors from game state
+        playerColors.p1 = msg.state.p1Color;
+        playerColors.p2 = msg.state.p2Color;
+
+        // Close lobby screen if open
+        this.lobbyScreen?.remove();
+        this.lobbyScreen = null;
+
         // First snapshot received — hide overlay, show game
         this.hideOverlay();
         this.canvas!.style.display = "block";
@@ -106,6 +145,7 @@ export class OnlineGame {
       ids => this.selection.set(ids),
       this.input.selectedBuildingId,
       id => this.dispatcher.upgradeBuilding(id),
+      ids => this.dispatcher.fuseGroup(ids),
     );
   };
 

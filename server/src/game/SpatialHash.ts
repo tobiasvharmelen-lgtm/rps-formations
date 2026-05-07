@@ -47,9 +47,11 @@ export class SpatialHash {
   /**
    * Like query() but also checks the horizontally-mirrored position when near
    * the left/right edges, supporting cylinder (horizontal wrap) maps.
+   * Pass wrap=false for rectangular (non-wrapping) maps.
    */
-  queryWrapped(x: number, y: number, radius: number, mapWidth: number): number[] {
+  queryWrapped(x: number, y: number, radius: number, mapWidth: number, wrap = true): number[] {
     const ids = new Set(this.query(x, y, radius));
+    if (!wrap) return [...ids];
     if (x - radius < 0) {
       for (const id of this.query(x + mapWidth, y, radius)) ids.add(id);
     }

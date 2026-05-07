@@ -1,6 +1,7 @@
 import { Container, Graphics } from "pixi.js";
 import { Unit, UnitType, Tier, PlayerId, UNIT_RADIUS, getStat } from "shared";
 import type { Camera } from "./Camera.js";
+import { playerColors } from "../playerColors.js";
 
 const UNIT_FILL: Record<UnitType, number> = {
   [UnitType.Rock]:     0xe74c3c,
@@ -51,8 +52,9 @@ export class UnitRenderer {
       const flash = st.flashTicks > 0;
       if (flash) st.flashTicks--;
 
+      const ownerColor = unit.owner === PlayerId.One ? playerColors.p1 : playerColors.p2;
       for (const offset of camera.tileOffsets(unit.x)) {
-        this.drawUnit(g, unit, unit.x + offset, unit.y, flash);
+        this.drawUnit(g, unit, unit.x + offset, unit.y, flash, ownerColor);
       }
     }
 
@@ -61,11 +63,11 @@ export class UnitRenderer {
     }
   }
 
-  private drawUnit(g: Graphics, unit: Unit, x: number, y: number, flash: boolean): void {
+  private drawUnit(g: Graphics, unit: Unit, x: number, y: number, flash: boolean, ownerColor: number): void {
     const r = getStat(UNIT_RADIUS, unit.type, unit.tier);
     const fill = flash ? 0xffffff : UNIT_FILL[unit.type];
     const stroke = UNIT_STROKE[unit.type];
-    const strokeWidth = unit.owner === PlayerId.One ? 24 : 16;
+    const strokeWidth = 20;
     const alpha = unit.owner === PlayerId.Two ? 0.85 : 1.0;
 
     switch (unit.type) {
@@ -82,6 +84,9 @@ export class UnitRenderer {
         break;
       }
     }
+
+    // Owner color ring
+    g.circle(x, y, r + strokeWidth).stroke({ color: ownerColor, alpha: 0.7, width: 16 });
 
     // Tier dots
     if (unit.tier > Tier.Small) {

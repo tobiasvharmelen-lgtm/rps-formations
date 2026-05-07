@@ -1,10 +1,12 @@
 import { Container, Graphics } from "pixi.js";
 import {
-  MAP_WIDTH, MAP_HEIGHT,
+  MAP_WIDTH, MAP_HEIGHT, MapType, GameState,
   MIDDLE_BARRIER_Y, BARRIER_LEFT_START, BARRIER_LEFT_END, BARRIER_RIGHT_START, BARRIER_RIGHT_END,
   GATE_X_LEFT, GATE_X_RIGHT, GATE_RADIUS,
   P1_HOME_END, P1_HOME_RIGHT_START, P2_HOME_START, P2_HOME_END,
 } from "shared";
+import { playerColors } from "../playerColors.js";
+import type { Camera } from "./Camera.js";
 
 const TILE_RADIUS = 3;
 const HOME_ALPHA  = 0.06;
@@ -13,7 +15,7 @@ export class MapRenderer {
   container: Container;
   private bgGfx: Graphics;
   private barrierGfx: Graphics;
-  private bgDrawn = false;
+  private lastMapType: MapType | null = null;
 
   constructor() {
     this.container = new Container();
@@ -23,12 +25,40 @@ export class MapRenderer {
     this.container.addChild(this.bgGfx, this.barrierGfx);
   }
 
-  render(_camera?: Camera): void {
-    if (!this.bgDrawn) {
-      this.bgDrawn = true;
-      this._drawBackground();
-      this._drawBarriers();
+  render(_camera?: Camera, state?: GameState): void {
+    const mapType = state?.mapType ?? MapType.Cylinder;
+    if (mapType !== this.lastMapType) {
+      this.lastMapType = mapType;
+      if (mapType === MapType.Rectangular) {
+        this._drawRectBackground();
+      } else {
+        this._drawBackground();
+        this._drawBarriers();
+      }
     }
+  }
+
+  private _drawRectBackground(): void {
+    const g = this.bgGfx;
+    g.clear();
+    this.barrierGfx.clear();
+
+    g.rect(0, 0, MAP_WIDTH, MAP_HEIGHT).fill({ color: 0x16162a });
+    // P1 home left band
+    g.rect(0, 0, P1_HOME_END, MAP_HEIGHT).fill({ color: playerColors.p1, alpha: HOME_ALPHA });
+    // P2 home right band
+    g.rect(MAP_WIDTH - P1_HOME_END, 0, P1_HOME_END, MAP_HEIGHT).fill({ color: playerColors.p2, alpha: HOME_ALPHA });
+
+    const grid = 2000;
+    for (let x = 0; x <= MAP_WIDTH; x += grid) g.moveTo(x, 0).lineTo(x, MAP_HEIGHT);
+    for (let y = 0; y <= MAP_HEIGHT; y += grid) g.moveTo(0, y).lineTo(MAP_WIDTH, y);
+    g.stroke({ color: 0xffffff, alpha: 0.05, width: 20 });
+
+    // Hard borders on all 4 edges
+    g.moveTo(0, 0).lineTo(MAP_WIDTH, 0).stroke({ color: 0x888888, width: 60 });
+    g.moveTo(0, MAP_HEIGHT).lineTo(MAP_WIDTH, MAP_HEIGHT).stroke({ color: 0x888888, width: 60 });
+    g.moveTo(0, 0).lineTo(0, MAP_HEIGHT).stroke({ color: 0x888888, width: 60 });
+    g.moveTo(MAP_WIDTH, 0).lineTo(MAP_WIDTH, MAP_HEIGHT).stroke({ color: 0x888888, width: 60 });
   }
 
   private _drawBackground(): void {
@@ -41,16 +71,16 @@ export class MapRenderer {
       // Map background
       g.rect(ox, 0, MAP_WIDTH, MAP_HEIGHT).fill({ color: 0x16162a });
 
-      // P1 home: left portion of tile (x=0 to 12000) — red tint
+      // P1 home: left portion of tile (x=0 to 9000) — red tint
       g.rect(ox, 0, P1_HOME_END, MAP_HEIGHT)
-        .fill({ color: 0xe74c3c, alpha: HOME_ALPHA });
-      // P1 home: right portion of tile (x=108000 to 120000) — red tint
+        .fill({ color: playerColors.p1, alpha: HOME_ALPHA });
+      // P1 home: right portion of tile — red tint
       g.rect(ox + P1_HOME_RIGHT_START, 0, MAP_WIDTH - P1_HOME_RIGHT_START, MAP_HEIGHT)
-        .fill({ color: 0xe74c3c, alpha: HOME_ALPHA });
+        .fill({ color: playerColors.p1, alpha: HOME_ALPHA });
 
-      // P2 home: x=60000 to 72000 — blue tint
+      // P2 home — blue tint
       g.rect(ox + P2_HOME_START, 0, P2_HOME_END - P2_HOME_START, MAP_HEIGHT)
-        .fill({ color: 0x3498db, alpha: HOME_ALPHA });
+        .fill({ color: playerColors.p2, alpha: HOME_ALPHA });
 
       // Grid lines every 2000 mm
       const grid = 2000;

@@ -97,6 +97,18 @@ wss.on("connection", (ws: WebSocket) => {
         break;
       }
 
+      case MsgType.C_LOBBY_UPDATE: {
+        if (!conn.roomId || !conn.playerId) break;
+        rooms.get(conn.roomId)?.handleLobbyUpdate(conn.playerId, msg.choice);
+        break;
+      }
+
+      case MsgType.C_LOBBY_READY: {
+        if (!conn.roomId || !conn.playerId) break;
+        rooms.get(conn.roomId)?.handleLobbyReady(conn.playerId);
+        break;
+      }
+
       case MsgType.C_PING:
         conn.send({ type: MsgType.S_PONG, clientTime: msg.clientTime, serverTime: Date.now() });
         break;
