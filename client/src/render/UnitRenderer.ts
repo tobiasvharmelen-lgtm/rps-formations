@@ -31,7 +31,7 @@ export class UnitRenderer {
     this.container.addChild(this.gfx);
   }
 
-  render(units: Unit[], camera: Camera): void {
+  render(units: Unit[], camera: Camera, selectedIds: ReadonlySet<number> = new Set()): void {
     const g = this.gfx;
     g.clear();
 
@@ -53,8 +53,9 @@ export class UnitRenderer {
       if (flash) st.flashTicks--;
 
       const ownerColor = unit.owner === PlayerId.One ? playerColors.p1 : playerColors.p2;
+      const isSelected = selectedIds.has(unit.id);
       for (const offset of camera.tileOffsets(unit.x)) {
-        this.drawUnit(g, unit, unit.x + offset, unit.y, flash, ownerColor);
+        this.drawUnit(g, unit, unit.x + offset, unit.y, flash, ownerColor, isSelected);
       }
     }
 
@@ -63,7 +64,7 @@ export class UnitRenderer {
     }
   }
 
-  private drawUnit(g: Graphics, unit: Unit, x: number, y: number, flash: boolean, ownerColor: number): void {
+  private drawUnit(g: Graphics, unit: Unit, x: number, y: number, flash: boolean, ownerColor: number, isSelected: boolean = false): void {
     const r = getStat(UNIT_RADIUS, unit.type, unit.tier);
     const fill = flash ? 0xffffff : UNIT_FILL[unit.type];
     const stroke = UNIT_STROKE[unit.type];
@@ -85,22 +86,24 @@ export class UnitRenderer {
       }
     }
 
-    // Owner color boundary — matches unit shape
+    // Owner color boundary — matches unit shape — thicker and always visible
     const boundaryR = r + strokeWidth;
+    const borderWidth = isSelected ? 28 : 24;
+    const borderAlpha = isSelected ? 1.0 : 0.85;
     switch (unit.type) {
       case UnitType.Rock:
-        g.circle(x, y, boundaryR).stroke({ color: ownerColor, alpha: 0.7, width: 16 });
+        g.circle(x, y, boundaryR).stroke({ color: ownerColor, alpha: borderAlpha, width: borderWidth });
         break;
       case UnitType.Paper: {
         const pad = boundaryR / Math.sqrt(2);
-        g.rect(x - pad, y - pad, pad * 2, pad * 2).stroke({ color: ownerColor, alpha: 0.7, width: 16 });
+        g.rect(x - pad, y - pad, pad * 2, pad * 2).stroke({ color: ownerColor, alpha: borderAlpha, width: borderWidth });
         break;
       }
       case UnitType.Scissors: {
         const cos30 = Math.cos(Math.PI / 6);
         g.moveTo(x, y - boundaryR).lineTo(x + boundaryR * cos30, y + boundaryR * 0.5)
           .lineTo(x - boundaryR * cos30, y + boundaryR * 0.5).closePath()
-          .stroke({ color: ownerColor, alpha: 0.7, width: 16 });
+          .stroke({ color: ownerColor, alpha: borderAlpha, width: borderWidth });
         break;
       }
     }

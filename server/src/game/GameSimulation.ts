@@ -89,18 +89,26 @@ function makeRectangularState(config: GameConfig): GameState {
       { owner: PlayerId.Two, x: MAP_WIDTH - 9_000,  y: MAP_HEIGHT / 2, hp: BASE_HP, maxHp: BASE_HP, attackCooldown: 0, captureProgress: 0 },
     ],
     zones: [
-      { type: ZoneType.LeftTop,    x:  45_000, y:  7_000, radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
-      { type: ZoneType.LeftBottom, x:  60_000, y: 17_000, radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
-      { type: ZoneType.RightTop,   x:  90_000, y:  6_000, radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
-      { type: ZoneType.RightBottom,x: 120_000, y: 18_000, radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
+      // Top lane
+      { type: ZoneType.LeftTop,    x:  45_000, y:  4_000, radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
+      { type: ZoneType.RightTop,   x: 135_000, y:  4_000, radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
+      // Middle lane
       { type: ZoneType.Mid1,       x:  50_000, y: 12_000, radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
-      { type: ZoneType.Mid2,       x: 135_000, y: 10_000, radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
+      { type: ZoneType.Mid2,       x: 130_000, y: 12_000, radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
+      // Bottom lane
+      { type: ZoneType.LeftBottom, x:  45_000, y: 20_000, radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
+      { type: ZoneType.RightBottom,x: 135_000, y: 20_000, radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
     ],
     winnerId: 0,
     mergeEvents: [],
     buildings: [],
     terrain: [],
-    gates: [],
+    gates: [
+      // Three gates in center vertical column connecting the 3 lanes
+      { id: nextMergedUnitId++, x: 90_000, y:  6_000, p1Units: 0, p2Units: 0, p1Open: false, p2Open: false },
+      { id: nextMergedUnitId++, x: 90_000, y: 12_000, p1Units: 0, p2Units: 0, p1Open: false, p2Open: false },
+      { id: nextMergedUnitId++, x: 90_000, y: 18_000, p1Units: 0, p2Units: 0, p1Open: false, p2Open: false },
+    ],
     mapType:          MapType.Rectangular,
     incomeMultiplier: config.incomeMultiplier ?? 1,
     p1Color:          config.p1Color ?? LOBBY_COLORS[0].hex,

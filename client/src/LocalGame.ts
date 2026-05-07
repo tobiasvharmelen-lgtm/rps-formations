@@ -118,7 +118,12 @@ export class LocalGame {
       ids => this.selection.set(ids),
       this.input.selectedBuildingId,
       id => this.dispatcher.upgradeBuilding(id),
-      ids => this.dispatcher.fuseGroup(ids),
+      ids => {
+        this.dispatcher.fuseGroup(ids);
+        // Immediately remove fused units from selection to prevent re-clicking
+        const remaining = [...this.selection.selectedIds].filter(id => !ids.includes(id));
+        this.selection.set(remaining);
+      },
     );
     this.rafId = requestAnimationFrame(this.loop);
   };

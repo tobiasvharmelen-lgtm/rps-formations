@@ -98,7 +98,7 @@ export class WorldRenderer {
     this.bases.render(state.bases, cam);
     this.buildings.render(state.buildings, cam);
     this.buildings.renderGates(state.gates, cam);
-    this.units.render(state.units, cam);
+    this.units.render(state.units, cam, selectedIds);
     this.effects.render(cam);
     this.ui.render(state, selectedIds, onSubSelect ?? (() => {}), selectedBuildingId, onUpgrade, onFuse);
 

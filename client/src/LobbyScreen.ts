@@ -54,6 +54,7 @@ export class LobbyScreen {
   private _buildPlayerPanel(player: 1 | 2): HTMLDivElement {
     const isHuman = player === this.humanPlayer;
     const panel = document.createElement("div");
+    panel.setAttribute("data-player", player.toString());
     Object.assign(panel.style, {
       background: "rgba(255,255,255,0.05)", borderRadius: "12px",
       padding: "24px", minWidth: "260px",

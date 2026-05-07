@@ -163,7 +163,7 @@ export class InputHandler {
     const hit = this.findUnitAt(world.x, world.y);
 
     if (hit) {
-      if (additive) this.selection.addOrToggle([hit.id], "toggle");
+      if (additive) this.selection.addOrToggle([hit.id], "add");
       else this.selection.set([hit.id]);
       this.selectedBuildingId = null;
     } else {
