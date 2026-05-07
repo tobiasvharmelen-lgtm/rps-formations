@@ -50,7 +50,7 @@ setMatchCallback((p1, p2) => {
     setTimeout(() => rooms.delete(roomId), 60_000);
   };
   rooms.set(roomId, room);
-  room.start();
+  // Don't start yet — room will start after both players ready in handleLobbyReady()
 });
 
 wss.on("connection", (ws: WebSocket) => {

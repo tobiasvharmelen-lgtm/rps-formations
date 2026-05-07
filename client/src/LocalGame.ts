@@ -34,6 +34,9 @@ export class LocalGame {
 
   start(): void {
     // Show lobby screen before starting
+    const canvas = document.querySelector("canvas")!;
+    canvas.style.display = "none";
+
     const lobby = new LobbyScreen(
       () => {}, // local: no network update needed
       () => {
@@ -45,6 +48,7 @@ export class LocalGame {
         playerColors.p2 = LOBBY_COLORS[p2.colorIndex]?.hex ?? playerColors.p2;
 
         lobby.remove();
+        canvas.style.display = "block";
         this._startGame({
           mapType: p1.mapType,
           incomeMultiplier: p1.incomeMultiplier,

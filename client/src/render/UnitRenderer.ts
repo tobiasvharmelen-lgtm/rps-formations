@@ -85,8 +85,25 @@ export class UnitRenderer {
       }
     }
 
-    // Owner color ring
-    g.circle(x, y, r + strokeWidth).stroke({ color: ownerColor, alpha: 0.7, width: 16 });
+    // Owner color boundary — matches unit shape
+    const boundaryR = r + strokeWidth;
+    switch (unit.type) {
+      case UnitType.Rock:
+        g.circle(x, y, boundaryR).stroke({ color: ownerColor, alpha: 0.7, width: 16 });
+        break;
+      case UnitType.Paper: {
+        const pad = boundaryR / Math.sqrt(2);
+        g.rect(x - pad, y - pad, pad * 2, pad * 2).stroke({ color: ownerColor, alpha: 0.7, width: 16 });
+        break;
+      }
+      case UnitType.Scissors: {
+        const cos30 = Math.cos(Math.PI / 6);
+        g.moveTo(x, y - boundaryR).lineTo(x + boundaryR * cos30, y + boundaryR * 0.5)
+          .lineTo(x - boundaryR * cos30, y + boundaryR * 0.5).closePath()
+          .stroke({ color: ownerColor, alpha: 0.7, width: 16 });
+        break;
+      }
+    }
 
     // Tier dots
     if (unit.tier > Tier.Small) {

@@ -224,11 +224,16 @@ export class GameSimulation {
       getStat(UNIT_RADIUS, b.type, b.tier) - getStat(UNIT_RADIUS, a.type, a.tier)
     );
 
+    // Use max radius for all spacing calculations to prevent overlaps
+    const maxR = units.length > 0
+      ? Math.max(...units.map(u => getStat(UNIT_RADIUS, u.type, u.tier)))
+      : 0;
+
     const n = units.length;
     for (let i = 0; i < n; i++) {
       const u = units[i];
       const r = getStat(UNIT_RADIUS, u.type, u.tier);
-      const off = formationSlot(i, r);
+      const off = formationSlot(i, maxR);
 
       let wx = destX + off.dx;
       let wy = destY + off.dy;
