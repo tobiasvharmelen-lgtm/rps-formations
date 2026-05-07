@@ -3,7 +3,7 @@ import { MAP_WIDTH, MAP_HEIGHT } from "shared";
 
 const MIN_ZOOM = 0.02;
 const MAX_ZOOM = 0.5;
-const PAN_SPEED = 800; // world-mm per second when key held
+export const cameraSettings = { panSpeed: 5000 }; // world-mm per second when key held
 const ZOOM_FACTOR = 1.15;
 
 export class Camera {
@@ -157,7 +157,7 @@ export class Camera {
 
     if (dx !== 0 || dy !== 0) {
       const len = Math.sqrt(dx * dx + dy * dy);
-      const move = PAN_SPEED * dtSec / this.zoom;
+      const move = cameraSettings.panSpeed * dtSec / this.zoom;
       this.x += (dx / len) * move * this.zoom;  // pan is screen-space-aware
       this.y += (dy / len) * move * this.zoom;
       this.clamp();

@@ -42,11 +42,11 @@ export function tickMovement(state: GameState, spatialHash: SpatialHash): void {
         const next = unit.waypointQueue.shift()!;
         unit.targetX = next.x;
         unit.targetY = next.y;
-        // Don't stop — fall through to seek this new target next tick
+        continue; // recompute dx/dy/dist fresh toward new target next tick
       } else {
         // At destination — look for nearby enemies to chase (aggro)
         const attackRange = getStat(UNIT_ATTACK_RANGE, unit.type, unit.tier);
-        const aggroRange  = attackRange * 3;
+        const aggroRange  = attackRange * 6;
         const nearbyIds   = spatialHash.queryWrapped(unit.x, unit.y, aggroRange, MAP_WIDTH);
         let closestEnemy: Unit | null = null;
         let closestDist2  = Infinity;
@@ -61,7 +61,7 @@ export function tickMovement(state: GameState, spatialHash: SpatialHash): void {
         if (closestEnemy) {
           unit.targetX = closestEnemy.x;
           unit.targetY = closestEnemy.y;
-          // Fall through to seek the enemy this tick
+          continue; // recompute toward enemy next tick (avoids NaN when dist=0)
         } else {
           unit.x  = unit.targetX;
           unit.y  = unit.targetY;

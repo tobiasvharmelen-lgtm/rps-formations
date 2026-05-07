@@ -64,9 +64,9 @@ export const UNIT_DAMAGE: readonly [number, number, number][] = [
 ] as const;
 
 export const UNIT_ATTACK_RANGE: readonly [number, number, number][] = [
-  [700, 800, 1000],
-  [700, 800, 1000],
-  [700, 800, 1000],
+  [350, 400, 500],
+  [350, 400, 500],
+  [350, 400, 500],
 ] as const;
 
 export const UNIT_ATTACK_COOLDOWN: readonly [number, number, number][] = [
