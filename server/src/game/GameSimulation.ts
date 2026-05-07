@@ -4,6 +4,8 @@ import {
   UNIT_HP, UNIT_RADIUS, STARTING_RESOURCES, BASE_HP,
   ZONE_RADIUS, MAP_WIDTH, MAP_HEIGHT, SPAWN_COST_T1, getStat,
   MERGE_COUNT, MERGE_RADIUS, BUILDING_STATS,
+  GATE_X_LEFT, GATE_X_RIGHT, GATE_RADIUS, GATE_UNIT_COST, MIDDLE_BARRIER_Y,
+  BUILDING_UPGRADE_COSTS, BUILDING_UPGRADE_RADII,
 } from "shared";
 import { SpatialHash } from "./SpatialHash.js";
 import { tickEconomy } from "./systems/EconomySystem.js";
@@ -13,6 +15,7 @@ import { tickMerge } from "./systems/MergeSystem.js";
 import { tickZones } from "./systems/ZoneSystem.js";
 import { tickBuildings } from "./systems/BuildingSystem.js";
 import { tickTerrain } from "./systems/TerrainSystem.js";
+import { tickGates } from "./systems/GateSystem.js";
 import { checkWin, resetWinState } from "./systems/WinCondition.js";
 
 let nextUnitId = 1;
@@ -47,25 +50,23 @@ function makeInitialState(): GameState {
     ],
     units: [],
     bases: [
-      { owner: PlayerId.One, x: 6_000,           y: MAP_HEIGHT / 2, hp: BASE_HP, maxHp: BASE_HP, attackCooldown: 0 },
-      { owner: PlayerId.Two, x: 60_000,          y: MAP_HEIGHT / 2, hp: BASE_HP, maxHp: BASE_HP, attackCooldown: 0 },
+      { owner: PlayerId.One, x: 0,       y: MAP_HEIGHT / 2, hp: BASE_HP, maxHp: BASE_HP, attackCooldown: 0 },
+      { owner: PlayerId.Two, x: 60_000,  y: MAP_HEIGHT / 2, hp: BASE_HP, maxHp: BASE_HP, attackCooldown: 0 },
     ],
     zones: [
-      { type: ZoneType.LeftTop,    x: 30_000,      y: 2_500,                  radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
-      { type: ZoneType.LeftBottom, x: 30_000,      y: MAP_HEIGHT - 2_500,     radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
-      { type: ZoneType.RightTop,   x: 90_000,      y: 2_500,                  radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
-      { type: ZoneType.RightBottom,x: 90_000,      y: MAP_HEIGHT - 2_500,     radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
+      { type: ZoneType.LeftTop,    x: 30_000, y: 4_000,              radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
+      { type: ZoneType.LeftBottom, x: 30_000, y: MAP_HEIGHT - 4_000, radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
+      { type: ZoneType.RightTop,   x: 90_000, y: 4_000,              radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
+      { type: ZoneType.RightBottom,x: 90_000, y: MAP_HEIGHT - 4_000, radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
     ],
     winnerId: 0,
     mergeEvents: [],
-    buildings: [
-      { id: nextMergedUnitId++, owner: PlayerId.Neutral, type: BuildingType.SwapTower, x: 30_000, y: 2_500,              hp: 99_999, maxHp: 99_999, setType: UnitType.Rock, conversionRadius: BUILDING_STATS[BuildingType.SwapTower].conversionRadius },
-      { id: nextMergedUnitId++, owner: PlayerId.Neutral, type: BuildingType.SwapTower, x: 30_000, y: MAP_HEIGHT - 2_500, hp: 99_999, maxHp: 99_999, setType: UnitType.Rock, conversionRadius: BUILDING_STATS[BuildingType.SwapTower].conversionRadius },
-      { id: nextMergedUnitId++, owner: PlayerId.Neutral, type: BuildingType.SwapTower, x: 90_000, y: 2_500,              hp: 99_999, maxHp: 99_999, setType: UnitType.Rock, conversionRadius: BUILDING_STATS[BuildingType.SwapTower].conversionRadius },
-      { id: nextMergedUnitId++, owner: PlayerId.Neutral, type: BuildingType.SwapTower, x: 90_000, y: MAP_HEIGHT - 2_500, hp: 99_999, maxHp: 99_999, setType: UnitType.Rock, conversionRadius: BUILDING_STATS[BuildingType.SwapTower].conversionRadius },
-    ],
+    buildings: [],
     terrain: [],
-    gatesOpen: [false, false], // both gates start closed
+    gates: [
+      { id: nextMergedUnitId++, x: GATE_X_LEFT,  y: MIDDLE_BARRIER_Y, p1Units: 0, p2Units: 0, p1Open: false, p2Open: false },
+      { id: nextMergedUnitId++, x: GATE_X_RIGHT, y: MIDDLE_BARRIER_Y, p1Units: 0, p2Units: 0, p1Open: false, p2Open: false },
+    ],
   };
 }
 
@@ -96,6 +97,7 @@ export class GameSimulation {
 
     tickEconomy(this.state);
     tickMovement(this.state, this.spatialHash);
+    tickGates(this.state);
 
     this.spatialHash.clear();
     for (const u of this.state.units) this.spatialHash.insert(u.id, u.x, u.y);
@@ -112,11 +114,13 @@ export class GameSimulation {
 
   applyInput(playerId: PlayerId, input: PlayerInput): void {
     switch (input.type) {
-      case InputType.SpawnUnit:     this.spawnUnit(playerId, input);     break;
-      case InputType.MoveUnits:     this.moveUnits(playerId, input);     break;
-      case InputType.MergeUnits:    this.mergeUnits(playerId, input);    break;
-      case InputType.PlaceBuilding: this.placeBuilding(playerId, input); break;
-      case InputType.SetTowerType:  this.setTowerType(playerId, input);  break;
+      case InputType.SpawnUnit:       this.spawnUnit(playerId, input);       break;
+      case InputType.MoveUnits:       this.moveUnits(playerId, input);       break;
+      case InputType.MergeUnits:      this.mergeUnits(playerId, input);      break;
+      case InputType.PlaceBuilding:   this.placeBuilding(playerId, input);   break;
+      case InputType.SetTowerType:    this.setTowerType(playerId, input);    break;
+      case InputType.SetZoneType:     this.setZoneType(playerId, input);     break;
+      case InputType.UpgradeBuilding: this.upgradeBuilding(playerId, input); break;
     }
   }
 
@@ -223,6 +227,18 @@ export class GameSimulation {
     });
   }
 
+  private buildingAreasOverlap(x: number, y: number, radius: number, excludeId?: number): boolean {
+    for (const b of this.state.buildings) {
+      if (b.id === excludeId) continue;
+      if (b.conversionRadius === 0) continue;
+      const dx = wrappedDx(x, b.x);
+      const dy = y - b.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < radius + b.conversionRadius) return true;
+    }
+    return false;
+  }
+
   private placeBuilding(playerId: PlayerId, input: PlayerInput): void {
     const bType = input.buildingType;
     if (bType === undefined) return;
@@ -231,6 +247,9 @@ export class GameSimulation {
     const player = this.state.players[playerId - 1];
     const stats = BUILDING_STATS[bType];
     if (player.resources < stats.cost) return;
+
+    // Reject if new building area overlaps an existing one
+    if (stats.conversionRadius > 0 && this.buildingAreasOverlap(x, y, stats.conversionRadius)) return;
 
     player.resources -= stats.cost;
     this.state.buildings.push({
@@ -243,14 +262,70 @@ export class GameSimulation {
       maxHp: stats.hp,
       setType: bType === BuildingType.SwapTower ? UnitType.Rock : undefined,
       conversionRadius: stats.conversionRadius,
+      upgradeLevel: 0,
     });
   }
 
   private setTowerType(playerId: PlayerId, input: PlayerInput): void {
     const bid = input.buildingId;
     const utype = input.unitType;
-    if (bid === undefined || utype === undefined) return;
+    if (bid === undefined) return;
     const building = this.state.buildings.find(b => b.id === bid && b.owner === playerId && b.type === BuildingType.SwapTower);
-    if (building) building.setType = utype;
+    // utype === undefined means "off"
+    if (building) building.setType = utype ?? null;
   }
+
+  private setZoneType(playerId: PlayerId, input: PlayerInput): void {
+    const idx = input.zoneIndex;
+    if (idx === undefined) return;
+    const zone = this.state.zones[idx];
+    if (!zone) return;
+    // Only the owner can set the zone type
+    const ownerPlayer = zone.owner === 1 ? PlayerId.One : zone.owner === 2 ? PlayerId.Two : null;
+    if (ownerPlayer !== playerId) return;
+    zone.setType = input.unitType ?? null;
+  }
+
+  private upgradeBuilding(playerId: PlayerId, input: PlayerInput): void {
+    const bid = input.buildingId;
+    if (bid === undefined) return;
+    const building = this.state.buildings.find(b => b.id === bid && b.owner === playerId);
+    if (!building) return;
+    if (building.type === BuildingType.Refinery) return;
+    if (building.upgradeLevel >= 3) return;
+
+    const cost = BUILDING_UPGRADE_COSTS[building.upgradeLevel];
+    const newRadius = BUILDING_UPGRADE_RADII[building.type as BuildingType.SwapTower | BuildingType.MirrorGate][building.upgradeLevel + 1];
+
+    // Reject if upgraded radius would overlap another building
+    if (this.buildingAreasOverlap(building.x, building.y, newRadius, building.id)) return;
+
+    // Find the N nearest friendly units within 15,000mm
+    const UPGRADE_SEARCH_RADIUS = 15_000;
+    const candidates = this.state.units
+      .filter(u => u.owner === playerId)
+      .map(u => {
+        const dx = wrappedDx(u.x, building.x);
+        const dy = u.y - building.y;
+        return { u, dist2: dx * dx + dy * dy };
+      })
+      .filter(({ dist2 }) => dist2 <= UPGRADE_SEARCH_RADIUS * UPGRADE_SEARCH_RADIUS)
+      .sort((a, b) => a.dist2 - b.dist2)
+      .slice(0, cost)
+      .map(({ u }) => u);
+
+    if (candidates.length < cost) return;
+
+    const toRemove = new Set(candidates.map(u => u.id));
+    this.state.units = this.state.units.filter(u => !toRemove.has(u.id));
+    building.upgradeLevel++;
+    building.conversionRadius = newRadius;
+  }
+}
+
+function wrappedDx(ax: number, bx: number): number {
+  let d = ax - bx;
+  if (d >  MAP_WIDTH / 2) d -= MAP_WIDTH;
+  if (d < -MAP_WIDTH / 2) d += MAP_WIDTH;
+  return d;
 }

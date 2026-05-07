@@ -1,15 +1,13 @@
 import { Container, Graphics } from "pixi.js";
-import { MAP_WIDTH, MAP_HEIGHT, TOP_LANE_BARRIER_Y, BOTTOM_LANE_BARRIER_Y } from "shared";
+import {
+  MAP_WIDTH, MAP_HEIGHT,
+  MIDDLE_BARRIER_Y, BARRIER_LEFT_START, BARRIER_LEFT_END, BARRIER_RIGHT_START, BARRIER_RIGHT_END,
+  GATE_X_LEFT, GATE_X_RIGHT, GATE_RADIUS,
+  P1_HOME_END, P1_HOME_RIGHT_START, P2_HOME_START, P2_HOME_END,
+} from "shared";
 
 const TILE_RADIUS = 3;
-
-// P1 home: x in [0, 12000] and [108000, 120000] (wraps around seam)
-// P2 home: x in [60000, 72000]
-const P1_HOME_END         = 12_000;
-const P1_HOME_RIGHT_START = 108_000;
-const P2_HOME_START       = 60_000;
-const P2_HOME_END         = 72_000;
-const HOME_ALPHA          = 0.06;
+const HOME_ALPHA  = 0.06;
 
 export class MapRenderer {
   container: Container;
@@ -25,7 +23,7 @@ export class MapRenderer {
     this.container.addChild(this.bgGfx, this.barrierGfx);
   }
 
-  render(_barrierOpen = false, _camera?: Camera): void {
+  render(_camera?: Camera): void {
     if (!this.bgDrawn) {
       this.bgDrawn = true;
       this._drawBackground();
@@ -77,29 +75,31 @@ export class MapRenderer {
     for (let n = -TILE_RADIUS; n <= TILE_RADIUS; n++) {
       const ox = n * MAP_WIDTH;
 
-      // Top lane barrier (separates top lane from middle)
-      g.moveTo(ox, TOP_LANE_BARRIER_Y).lineTo(ox + MAP_WIDTH, TOP_LANE_BARRIER_Y)
+      // Left middle barrier: from BARRIER_LEFT_START to BARRIER_LEFT_END
+      // Split around gate opening at GATE_X_LEFT
+      g.moveTo(ox + BARRIER_LEFT_START, MIDDLE_BARRIER_Y)
+        .lineTo(ox + GATE_X_LEFT - GATE_RADIUS, MIDDLE_BARRIER_Y)
+        .stroke({ color: 0xaaaaaa, alpha: 0.85, width: 50 });
+      g.moveTo(ox + GATE_X_LEFT + GATE_RADIUS, MIDDLE_BARRIER_Y)
+        .lineTo(ox + BARRIER_LEFT_END, MIDDLE_BARRIER_Y)
         .stroke({ color: 0xaaaaaa, alpha: 0.85, width: 50 });
 
-      // Bottom lane barrier (separates bottom lane from middle)
-      g.moveTo(ox, BOTTOM_LANE_BARRIER_Y).lineTo(ox + MAP_WIDTH, BOTTOM_LANE_BARRIER_Y)
+      // Right middle barrier: from BARRIER_RIGHT_START to BARRIER_RIGHT_END
+      // Split around gate opening at GATE_X_RIGHT
+      g.moveTo(ox + BARRIER_RIGHT_START, MIDDLE_BARRIER_Y)
+        .lineTo(ox + GATE_X_RIGHT - GATE_RADIUS, MIDDLE_BARRIER_Y)
+        .stroke({ color: 0xaaaaaa, alpha: 0.85, width: 50 });
+      g.moveTo(ox + GATE_X_RIGHT + GATE_RADIUS, MIDDLE_BARRIER_Y)
+        .lineTo(ox + BARRIER_RIGHT_END, MIDDLE_BARRIER_Y)
         .stroke({ color: 0xaaaaaa, alpha: 0.85, width: 50 });
 
-      // Gates: small openings in the barriers for lane switching
-      // Gate 1 at x=30000, Gate 2 at x=90000, with +/- 2000mm radius
-      const gateRadius = 2_000;
-      const gates = [30_000, 90_000];
-      for (const gateX of gates) {
-        const bx = ox + gateX;
-        // Render gate as a slightly different color (lighter) to indicate it's closeable
-        g.moveTo(bx - gateRadius, TOP_LANE_BARRIER_Y).lineTo(bx + gateRadius, TOP_LANE_BARRIER_Y)
-          .stroke({ color: 0x888888, alpha: 0.5, width: 50 });
-        g.moveTo(bx - gateRadius, BOTTOM_LANE_BARRIER_Y).lineTo(bx + gateRadius, BOTTOM_LANE_BARRIER_Y)
-          .stroke({ color: 0x888888, alpha: 0.5, width: 50 });
+      // Gate circles (decorative — always visible)
+      for (const gx of [GATE_X_LEFT, GATE_X_RIGHT]) {
+        g.circle(ox + gx, MIDDLE_BARRIER_Y, GATE_RADIUS)
+          .fill({ color: 0x222244, alpha: 0.7 })
+          .stroke({ color: 0xaaaaaa, alpha: 0.6, width: 30 });
       }
     }
   }
 }
 
-// Keep Camera import optional — MapRenderer.render() accepts it but doesn't use it
-import type { Camera } from "./Camera.js";

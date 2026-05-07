@@ -2,6 +2,7 @@ import {
   PlayerId, InputType, UnitType, Tier, BuildingType,
   MERGE_COUNT, MERGE_RADIUS, SPAWN_COST_T1,
 } from "shared";
+
 import { SelectionManager } from "./SelectionManager.js";
 import { InputBackend } from "./InputBackend.js";
 
@@ -53,8 +54,18 @@ export class CommandDispatcher {
     return true;
   }
 
-  setTowerType(buildingId: number, unitType: UnitType): boolean {
+  setTowerType(buildingId: number, unitType: UnitType | undefined): boolean {
     this.backend.send({ type: InputType.SetTowerType, buildingId, unitType });
+    return true;
+  }
+
+  setZoneType(zoneIndex: number, unitType: UnitType | undefined): boolean {
+    this.backend.send({ type: InputType.SetZoneType, zoneIndex, unitType });
+    return true;
+  }
+
+  upgradeBuilding(buildingId: number): boolean {
+    this.backend.send({ type: InputType.UpgradeBuilding, buildingId });
     return true;
   }
 

@@ -1,5 +1,11 @@
-import { GameState } from "shared";
-import { UNIT_SPEED, UNIT_RADIUS, MAP_WIDTH, MAP_HEIGHT, TOP_LANE_BARRIER_Y, BOTTOM_LANE_BARRIER_Y, getStat } from "shared";
+import { GameState, PlayerId } from "shared";
+import {
+  UNIT_SPEED, UNIT_RADIUS, MAP_WIDTH, MAP_HEIGHT, getStat,
+  MIDDLE_BARRIER_Y,
+  BARRIER_LEFT_START, BARRIER_LEFT_END,
+  BARRIER_RIGHT_START, BARRIER_RIGHT_END,
+  GATE_X_LEFT, GATE_X_RIGHT, GATE_HALF_WIDTH,
+} from "shared";
 import { SpatialHash } from "../SpatialHash.js";
 
 function wrappedDx(ax: number, bx: number): number {
@@ -37,6 +43,17 @@ export function tickMovement(state: GameState, spatialHash: SpatialHash): void {
     let effectiveSpeed = speed;
     // Apply slowing from PaperGrass terrain (set by TerrainSystem earlier)
     if (unit.slowed) effectiveSpeed *= 0.5;
+
+    // Speed boost (+20%) if the unit's player has opened the gate in this middle area
+    const ux = unit.x;
+    if (
+      (ux >= BARRIER_LEFT_START && ux <= BARRIER_LEFT_END &&
+        (unit.owner === PlayerId.One ? state.gates[0].p1Open : state.gates[0].p2Open)) ||
+      (ux >= BARRIER_RIGHT_START && ux <= BARRIER_RIGHT_END &&
+        (unit.owner === PlayerId.One ? state.gates[1].p1Open : state.gates[1].p2Open))
+    ) {
+      effectiveSpeed *= 1.2;
+    }
 
     // ---- Seek force toward individual target ----
     // Clamp seek speed to distance remaining to prevent overshoot
@@ -77,25 +94,32 @@ export function tickMovement(state: GameState, spatialHash: SpatialHash): void {
     unit.x += vx;
     unit.y += vy;
 
-    // ---- Horizontal lane barriers (top and bottom) with gates for lane switching ----
+    // ---- Single horizontal barrier through middle areas (not through bases) ----
     {
-      // Detect crossing from lane to middle or middle to lane
-      const crossedTopBarrier = prevY <= TOP_LANE_BARRIER_Y && unit.y > TOP_LANE_BARRIER_Y;
-      const crossedBottomBarrier = prevY >= BOTTOM_LANE_BARRIER_Y && unit.y < BOTTOM_LANE_BARRIER_Y;
+      const crossedBarrier =
+        (prevY < MIDDLE_BARRIER_Y && unit.y >= MIDDLE_BARRIER_Y) ||
+        (prevY > MIDDLE_BARRIER_Y && unit.y <= MIDDLE_BARRIER_Y);
 
-      if (crossedTopBarrier || crossedBottomBarrier) {
-        // Determine which gate to check based on unit's x position
-        const gateIndex = unit.x < 60_000 ? 0 : 1; // gate 1 at x=30k, gate 2 at x=90k
+      if (crossedBarrier) {
+        const ux = unit.x;
+        const inLeftMiddle  = ux >= BARRIER_LEFT_START  && ux <= BARRIER_LEFT_END;
+        const inRightMiddle = ux >= BARRIER_RIGHT_START && ux <= BARRIER_RIGHT_END;
 
-        if (!state.gatesOpen[gateIndex]) {
-          // Gate is closed - block the movement
-          unit.y = prevY;
-          vy = 0;
-          // Adjust target to stay on the correct side of the barrier
-          if (crossedTopBarrier) {
-            unit.targetY = Math.min(unit.targetY, TOP_LANE_BARRIER_Y - 100);
-          } else {
-            unit.targetY = Math.max(unit.targetY, BOTTOM_LANE_BARRIER_Y + 100);
+        if (inLeftMiddle || inRightMiddle) {
+          const gateIndex = inLeftMiddle ? 0 : 1;
+          const gateX     = inLeftMiddle ? GATE_X_LEFT : GATE_X_RIGHT;
+          const gate      = state.gates[gateIndex];
+          const gateOpen  = unit.owner === PlayerId.One ? gate.p1Open : gate.p2Open;
+          const atGate    = Math.abs(ux - gateX) <= GATE_HALF_WIDTH;
+
+          if (!atGate || !gateOpen) {
+            unit.y = prevY;
+            vy = 0;
+            if (prevY < MIDDLE_BARRIER_Y) {
+              unit.targetY = Math.min(unit.targetY, MIDDLE_BARRIER_Y - 100);
+            } else {
+              unit.targetY = Math.max(unit.targetY, MIDDLE_BARRIER_Y + 100);
+            }
           }
         }
       }

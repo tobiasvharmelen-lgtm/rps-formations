@@ -1,5 +1,6 @@
 import { Container, Graphics, Text } from "pixi.js";
-import { GameState, PlayerId, BuildingType, Unit } from "shared";
+import { GameState, PlayerId, BuildingType, Building, Unit } from "shared";
+import { BUILDING_UPGRADE_COSTS } from "shared";
 
 class PlayerHUD {
   container: Container;
@@ -197,7 +198,20 @@ export class UIRenderer {
 
     this.selectionPanel = new SelectionPanel();
     this.container.addChild(this.selectionPanel.container);
+
+    this.upgradeBg = new Graphics();
+    this.upgradeText = new Text({ text: "", style: { fill: 0xffd700, fontSize: 15, fontFamily: "monospace" } });
+    this.upgradeBtn = new Graphics();
+    this.upgradeBtnText = new Text({ text: "", style: { fill: 0xffffff, fontSize: 14, fontFamily: "monospace", fontWeight: "bold" } });
+    this.upgradeBtn.eventMode = "static";
+    this.upgradeBtn.cursor = "pointer";
+    this.container.addChild(this.upgradeBg, this.upgradeText, this.upgradeBtn, this.upgradeBtnText);
   }
+
+  private upgradeBg: Graphics;
+  private upgradeText: Text;
+  private upgradeBtn: Graphics;
+  private upgradeBtnText: Text;
 
   showPlacingMode(type: BuildingType | null): void {
     if (type === null) {
@@ -213,6 +227,8 @@ export class UIRenderer {
     state: GameState,
     selectedIds: ReadonlySet<number>,
     onSubSelect: (ids: number[]) => void,
+    selectedBuildingId?: number | null,
+    onUpgrade?: (buildingId: number) => void,
   ): void {
     const sw = this.screenW();
     const sh = this.screenH();
@@ -237,6 +253,12 @@ export class UIRenderer {
       this.selectionPanel.container.position.set(16, sh - 30 - panelH);
     }
 
+    // Upgrade panel for selected building
+    const building = selectedBuildingId != null
+      ? state.buildings.find((b: Building) => b.id === selectedBuildingId) ?? null
+      : null;
+    this._renderUpgradePanel(building, sw, sh, onUpgrade);
+
     if (state.winnerId) {
       this.winText.visible = true;
       this.winText.text = `Player ${state.winnerId} wins!`;
@@ -246,5 +268,53 @@ export class UIRenderer {
     } else {
       this.winText.visible = false;
     }
+  }
+
+  private _renderUpgradePanel(building: Building | null, sw: number, sh: number, onUpgrade?: (id: number) => void): void {
+    const g = this.upgradeBg;
+    const btn = this.upgradeBtn;
+    g.clear();
+    btn.clear();
+
+    const canUpgrade = building &&
+      building.type !== BuildingType.Refinery &&
+      building.upgradeLevel < 3;
+
+    if (!canUpgrade || !building) {
+      this.upgradeText.visible = false;
+      this.upgradeBtnText.visible = false;
+      return;
+    }
+
+    const cost = BUILDING_UPGRADE_COSTS[building.upgradeLevel];
+    const names = ["Swap Tower", "Mirror Gate", "Refinery"];
+    const panelW = 260;
+    const panelH = 80;
+    const panelX = sw - panelW - 16;
+    const panelY = sh - panelH - 90;
+
+    g.roundRect(panelX, panelY, panelW, panelH, 6)
+      .fill({ color: 0x111130, alpha: 0.9 })
+      .stroke({ color: 0x334, width: 2, alpha: 0.9 });
+
+    this.upgradeText.visible = true;
+    this.upgradeText.text = `${names[building.type]}  LV${building.upgradeLevel} → LV${building.upgradeLevel + 1}`;
+    this.upgradeText.position.set(panelX + 10, panelY + 8);
+
+    const btnX = panelX + 10;
+    const btnY = panelY + 36;
+    const btnW = panelW - 20;
+    const btnH = 32;
+
+    btn.roundRect(btnX, btnY, btnW, btnH, 4)
+      .fill({ color: 0x225522, alpha: 1 })
+      .stroke({ color: 0x44aa44, width: 1, alpha: 0.9 });
+
+    this.upgradeBtnText.visible = true;
+    this.upgradeBtnText.text = `▲ Upgrade  (${cost} units nearby)`;
+    this.upgradeBtnText.position.set(btnX + 8, btnY + 8);
+
+    btn.removeAllListeners();
+    btn.on("pointerdown", () => onUpgrade?.(building.id));
   }
 }

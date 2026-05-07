@@ -54,7 +54,7 @@ export class WorldRenderer {
     );
     this.pixi.uiLayer.addChild(this.ui.container, this.selection.screenContainer);
 
-    this.map.render(false);
+    this.map.render();
 
     window.addEventListener("resize", () => {
       this.camera.fitToView();
@@ -76,6 +76,8 @@ export class WorldRenderer {
     selectedIds: ReadonlySet<number> = new Set(),
     dragBox?: DragBox,
     onSubSelect?: (ids: number[]) => void,
+    selectedBuildingId?: number | null,
+    onUpgrade?: (buildingId: number) => void,
   ): void {
     const cam = this.camera;
 
@@ -90,14 +92,15 @@ export class WorldRenderer {
       for (const u of state.units) this.prevUnits.set(u.id, { ...u });
     }
 
-    this.map.render(false, cam);
+    this.map.render(cam);
     this.terrain.render(state.terrain, cam);
     this.zones.render(state.zones, cam);
     this.bases.render(state.bases, cam);
     this.buildings.render(state.buildings, cam);
+    this.buildings.renderGates(state.gates, cam);
     this.units.render(state.units, cam);
     this.effects.render(cam);
-    this.ui.render(state, selectedIds, onSubSelect ?? (() => {}));
+    this.ui.render(state, selectedIds, onSubSelect ?? (() => {}), selectedBuildingId, onUpgrade);
 
     if (dragBox) {
       this.selection.render(state, selectedIds, dragBox, cam);

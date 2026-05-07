@@ -6,12 +6,28 @@ export const TICK_MS = 1000 / TICK_RATE;
 export const COUNTDOWN_TICKS = 3 * TICK_RATE; // 3-second countdown
 
 // ---- Map ----
-export const MAP_WIDTH = 120_000;       // world-mm (expanded for larger tactical field)
+export const MAP_WIDTH = 120_000;
 export const MAP_HEIGHT = 16_000;
-// Horizontal barriers separate top and bottom lanes
-export const TOP_LANE_BARRIER_Y = 6_000;      // barrier separating top lane from middle
-export const BOTTOM_LANE_BARRIER_Y = 10_000;  // barrier separating bottom lane from middle
-export const LANE_GAP_HEIGHT = 5_000;  // legacy - keep for zone positioning (top lane: y < 5k, bottom: y > 11k)
+
+// Single horizontal barrier through both middle areas (not through bases)
+export const MIDDLE_BARRIER_Y    = 8_000;   // y position of the barrier (MAP_HEIGHT / 2)
+export const BARRIER_LEFT_START  = 6_000;   // barrier begins after P1 home
+export const BARRIER_LEFT_END    = 54_000;  // barrier ends before P2 home
+export const BARRIER_RIGHT_START = 66_000;  // barrier resumes after P2 home
+export const BARRIER_RIGHT_END   = 114_000; // barrier ends before P1 right home
+
+// Gate structures (on the barrier line, at center of each middle area)
+export const GATE_X_LEFT    = 30_000;  // left gate X
+export const GATE_X_RIGHT   = 90_000;  // right gate X
+export const GATE_HALF_WIDTH = 1_500;  // half-width of the passable gap when a gate is open
+export const GATE_RADIUS     = 2_500;  // radius of the gate circle (visual + unit contribution zone)
+export const GATE_UNIT_COST  = 50;     // units a player must contribute to open a gate
+
+// Home territory boundaries (for rendering — symmetric: P1 at seam, P2 at center)
+export const P1_HOME_END          = 6_000;
+export const P1_HOME_RIGHT_START  = 114_000;
+export const P2_HOME_START        = 54_000;
+export const P2_HOME_END          = 66_000;
 
 // ---- Economy ----
 export const STARTING_RESOURCES = 500; // shared gold pool
@@ -82,8 +98,10 @@ export const DAMAGE_MULT: readonly [number, number, number][] = [
 
 // ---- Zone capture ----
 export const ZONE_RADIUS = 1_200;       // world-mm
-export const ZONE_CAPTURE_RATE = 2;     // progress points per tick when units inside
 export const ZONE_FULL = 100;           // |captureProgress| threshold to own a zone
+// Time for 10 units to fully capture (ticks). Scales linearly with unit count.
+// 24_000 ticks = 2 minutes at 20 tps.
+export const ZONE_CAPTURE_TICKS_BASE = 24_000;
 
 
 // ---- Buildings ----
@@ -91,6 +109,18 @@ export const BUILDING_STATS: Record<BuildingType, { hp: number; cost: number; co
   [BuildingType.SwapTower]:  { hp: 300, cost:  60, conversionRadius: 1_500 },
   [BuildingType.MirrorGate]: { hp: 500, cost: 120, conversionRadius: 1_500 },
   [BuildingType.Refinery]:   { hp: 400, cost: 100, conversionRadius:     0, incomeBonus: 3 },
+};
+
+/** Gold deducted from building owner per unit converted by SwapTower */
+export const SWAP_TOWER_CONVERSION_COST = 1;
+
+/** Units consumed per upgrade level (index 0 = tier 0→1, etc.) */
+export const BUILDING_UPGRADE_COSTS = [10, 20, 30] as const;
+
+/** conversionRadius after each upgrade level [lvl0, lvl1, lvl2, lvl3] */
+export const BUILDING_UPGRADE_RADII: Record<BuildingType.SwapTower | BuildingType.MirrorGate, readonly [number, number, number, number]> = {
+  [BuildingType.SwapTower]:  [1_500, 2_500, 3_800, 5_500],
+  [BuildingType.MirrorGate]: [1_500, 2_500, 3_800, 5_500],
 };
 
 // ---- Render ----

@@ -2,7 +2,15 @@ import { Camera } from "../render/Camera.js";
 import { SelectionManager } from "./SelectionManager.js";
 import { CommandDispatcher } from "./CommandDispatcher.js";
 import { InputBackend } from "./InputBackend.js";
-import { UnitType, PlayerId, UNIT_RADIUS, getStat, Unit, BuildingType, MAP_WIDTH, Building } from "shared";
+import { UnitType, PlayerId, UNIT_RADIUS, getStat, Unit, BuildingType, MAP_WIDTH, Building, Zone, ZoneOwner } from "shared";
+
+/** Cycles Rock → Paper → Scissors → Off (null) → Rock */
+function cycleUnitType(current: UnitType | null): UnitType | undefined {
+  if (current === UnitType.Rock)     return UnitType.Paper;
+  if (current === UnitType.Paper)    return UnitType.Scissors;
+  if (current === UnitType.Scissors) return undefined; // "off"
+  return UnitType.Rock;
+}
 
 function wrappedDx(ax: number, bx: number): number {
   let d = ax - bx;
@@ -21,6 +29,8 @@ export class InputHandler {
   dragBox: DragBox = { active: false, startScreen: { x: 0, y: 0 }, endScreen: { x: 0, y: 0 } };
   /** Non-null when the player has chosen a building type to place */
   placingBuilding: BuildingType | null = null;
+  /** ID of the currently selected own building (for upgrade UI) */
+  selectedBuildingId: number | null = null;
 
   private mouseDownPos: { x: number; y: number } | null = null;
   private readonly DRAG_THRESHOLD = 6;
@@ -87,9 +97,9 @@ export class InputHandler {
     e.preventDefault();
     const world = this.camera.screenToWorldNormalized(e.clientX, e.clientY);
 
-    // Right-click on own SwapTower → cycle its target type (R→P→S→R)
     const state = this.backend.getState();
     if (state) {
+      // Right-click on own SwapTower → cycle its target type (R→P→S→Off→R)
       const tower = state.buildings.find((b: Building) => {
         if (b.type !== BuildingType.SwapTower || b.owner !== this.selection.humanPlayer) return false;
         const dx = wrappedDx(b.x, world.x);
@@ -97,13 +107,21 @@ export class InputHandler {
         return dx * dx + dy * dy < 400 * 400;
       });
       if (tower) {
-        const cycle: Record<UnitType, UnitType> = {
-          [UnitType.Rock]:     UnitType.Paper,
-          [UnitType.Paper]:    UnitType.Scissors,
-          [UnitType.Scissors]: UnitType.Rock,
-        };
-        this.dispatcher.setTowerType(tower.id, cycle[tower.setType ?? UnitType.Rock]);
+        this.dispatcher.setTowerType(tower.id, cycleUnitType(tower.setType ?? null));
         return;
+      }
+
+      // Right-click on own captured zone → cycle its setType (R→P→S→Off→R)
+      const humanOwner = this.selection.humanPlayer === PlayerId.One ? ZoneOwner.Player1 : ZoneOwner.Player2;
+      for (let zi = 0; zi < state.zones.length; zi++) {
+        const zone: Zone = state.zones[zi];
+        if (zone.owner !== humanOwner) continue;
+        const dx = wrappedDx(zone.x, world.x);
+        const dy = zone.y - world.y;
+        if (dx * dx + dy * dy < zone.radius * zone.radius) {
+          this.dispatcher.setZoneType(zi, cycleUnitType(zone.setType ?? null));
+          return;
+        }
       }
     }
 
@@ -122,8 +140,23 @@ export class InputHandler {
     if (hit) {
       if (additive) this.selection.addOrToggle([hit.id], "toggle");
       else this.selection.set([hit.id]);
-    } else if (!additive) {
-      this.selection.clear();
+      this.selectedBuildingId = null;
+    } else {
+      // Check if clicking on an own building (to select it for upgrade)
+      const state = this.backend.getState();
+      const bHit = state?.buildings.find((b: Building) => {
+        if (b.owner !== this.selection.humanPlayer) return false;
+        const dx = wrappedDx(b.x, world.x);
+        const dy = b.y - world.y;
+        return dx * dx + dy * dy < 800 * 800;
+      });
+      if (bHit) {
+        this.selectedBuildingId = bHit.id;
+        if (!additive) this.selection.clear();
+      } else if (!additive) {
+        this.selection.clear();
+        this.selectedBuildingId = null;
+      }
     }
   }
 

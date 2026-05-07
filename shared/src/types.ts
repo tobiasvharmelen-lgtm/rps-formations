@@ -39,11 +39,13 @@ export const enum GamePhase {
 }
 
 export const enum InputType {
-  MoveUnits     = 0,
-  SpawnUnit     = 3,
-  MergeUnits    = 4,
-  PlaceBuilding = 6,
-  SetTowerType  = 7,
+  MoveUnits       = 0,
+  SpawnUnit       = 3,
+  MergeUnits      = 4,
+  PlaceBuilding   = 6,
+  SetTowerType    = 7,
+  SetZoneType     = 8,
+  UpgradeBuilding = 9,
 }
 
 export const enum BuildingType {
@@ -105,6 +107,8 @@ export interface Zone {
   owner: ZoneOwner;
   /** -100 (full P2) to +100 (full P1). 0 = neutral */
   captureProgress: number;
+  /** Unit type to convert passing owner units to; null = conversion off */
+  setType?: UnitType | null;
 }
 
 export interface PlayerState {
@@ -121,8 +125,11 @@ export interface Building {
   y: number;
   hp: number;
   maxHp: number;
-  setType?: UnitType;
+  /** Unit type to convert; null = off */
+  setType?: UnitType | null;
   conversionRadius: number;
+  /** 0–3: how many times this building has been upgraded */
+  upgradeLevel: number;
 }
 
 export interface Terrain {
@@ -138,6 +145,20 @@ export interface MergeEvent {
   y: number;
 }
 
+export interface Gate {
+  id: number;
+  x: number;
+  y: number;
+  /** Units P1 has contributed toward opening (0–GATE_UNIT_COST) */
+  p1Units: number;
+  /** Units P2 has contributed toward opening (0–GATE_UNIT_COST) */
+  p2Units: number;
+  /** P1 has permanently opened this gate */
+  p1Open: boolean;
+  /** P2 has permanently opened this gate */
+  p2Open: boolean;
+}
+
 export interface GameState {
   tick: number;
   phase: GamePhase;
@@ -150,7 +171,7 @@ export interface GameState {
   mergeEvents: MergeEvent[];
   buildings: Building[];
   terrain: Terrain[];
-  gatesOpen: [boolean, boolean]; // gate state for middle area 1 and 2
+  gates: [Gate, Gate];
 }
 
 // ---- Network inputs ----
@@ -168,7 +189,9 @@ export interface PlayerInput {
   mergeUnitIds?: number[];
   // PlaceBuilding
   buildingType?: BuildingType;
-  // SetTowerType
+  // SetTowerType / UpgradeBuilding
   buildingId?: number;
   unitType?: UnitType;
+  // SetZoneType
+  zoneIndex?: number;
 }

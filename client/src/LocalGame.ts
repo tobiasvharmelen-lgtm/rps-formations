@@ -72,6 +72,8 @@ export class LocalGame {
       this.selection.selectedIds,
       this.input.dragBox,
       ids => this.selection.set(ids),
+      this.input.selectedBuildingId,
+      id => this.dispatcher.upgradeBuilding(id),
     );
     this.rafId = requestAnimationFrame(this.loop);
   };

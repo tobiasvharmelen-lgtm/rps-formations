@@ -1,5 +1,5 @@
-import { Container, Graphics } from "pixi.js";
-import { Zone, ZoneType, ZoneOwner } from "shared";
+import { Container, Graphics, Text } from "pixi.js";
+import { Zone, ZoneType, ZoneOwner, UnitType, MAP_WIDTH } from "shared";
 import type { Camera } from "./Camera.js";
 
 const ZONE_COLOR: Record<ZoneType, number> = {
@@ -15,10 +15,13 @@ const OWNER_FILL: Record<ZoneOwner, { color: number; alpha: number }> = {
   [ZoneOwner.Player2]: { color: 0x3498db, alpha: 0.18 },
 };
 
+const TYPE_ICONS = ["●", "■", "▲"]; // Rock, Paper, Scissors
+
 export class ZoneRenderer {
   container: Container;
   private shapeGfx = new Graphics();
-  private barGfx = new Graphics();
+  private barGfx   = new Graphics();
+  private iconLabels = new Map<number, Text>();
 
   constructor() {
     this.container = new Container();
@@ -32,7 +35,12 @@ export class ZoneRenderer {
     sg.clear();
     bg.clear();
 
-    for (const zone of zones) {
+    const renderedKeys = new Set<number>();
+
+    for (let zi = 0; zi < zones.length; zi++) {
+      const zone = zones[zi];
+      renderedKeys.add(zi);
+
       for (const offset of camera.tileOffsets(zone.x)) {
         const zx = zone.x + offset;
         const color = ZONE_COLOR[zone.type];
@@ -65,6 +73,24 @@ export class ZoneRenderer {
           bg.rect(center - w, barY, w, barH).fill({ color: 0x3498db });
         }
         bg.moveTo(center, barY).lineTo(center, barY + barH).stroke({ color: 0xffffff, alpha: 0.5, width: 4 });
+      }
+
+      // setType icon label (only show for primary tile offset)
+      if (zone.owner !== ZoneOwner.Neutral && zone.setType != null) {
+        if (!this.iconLabels.has(zi)) {
+          const lbl = new Text({ text: "", style: { fill: 0xffffff, fontSize: 280, fontFamily: "monospace" } });
+          lbl.anchor.set(0.5);
+          this.container.addChild(lbl);
+          this.iconLabels.set(zi, lbl);
+        }
+        const lbl = this.iconLabels.get(zi)!;
+        lbl.visible = true;
+        lbl.text = TYPE_ICONS[zone.setType as UnitType];
+        const canonX = zone.x + Math.round((camera.x - zone.x) / MAP_WIDTH) * MAP_WIDTH;
+        lbl.position.set(canonX, zone.y);
+      } else {
+        const lbl = this.iconLabels.get(zi);
+        if (lbl) lbl.visible = false;
       }
     }
   }

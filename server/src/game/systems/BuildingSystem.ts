@@ -1,6 +1,6 @@
 import { GameState, BuildingType, PlayerId, UnitType } from "shared";
 import { SpatialHash } from "../SpatialHash.js";
-import { MAP_WIDTH } from "shared";
+import { MAP_WIDTH, SWAP_TOWER_CONVERSION_COST } from "shared";
 
 const COUNTER_TYPE: Record<UnitType, UnitType> = {
   [UnitType.Rock]:     UnitType.Paper,
@@ -11,12 +11,19 @@ const COUNTER_TYPE: Record<UnitType, UnitType> = {
 export function tickBuildings(state: GameState, spatialHash: SpatialHash): void {
   for (const building of state.buildings) {
     if (building.type === BuildingType.SwapTower) {
-      if (building.setType === undefined) continue;
+      if (building.setType == null) continue; // null or undefined = off
       const nearby = spatialHash.queryWrapped(building.x, building.y, building.conversionRadius, MAP_WIDTH);
+      const player = building.owner !== PlayerId.Neutral ? state.players[building.owner - 1] : null;
       for (const uid of nearby) {
         const u = state.units.find(u => u.id === uid);
         if (!u) continue;
         if (building.owner !== PlayerId.Neutral && u.owner !== building.owner) continue;
+        if (u.type === building.setType) continue; // already correct type
+        // Charge 1 gold per conversion (owner-placed towers only)
+        if (player) {
+          if (player.resources < SWAP_TOWER_CONVERSION_COST) continue;
+          player.resources -= SWAP_TOWER_CONVERSION_COST;
+        }
         u.type = building.setType;
       }
     } else if (building.type === BuildingType.MirrorGate) {
