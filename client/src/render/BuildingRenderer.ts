@@ -1,5 +1,5 @@
 import { Container, Graphics, Text } from "pixi.js";
-import { Building, BuildingType, UnitType, Gate, MAP_WIDTH, GATE_UNIT_COST } from "shared";
+import { Building, BuildingType, UnitType, Gate, MAP_WIDTH, GATE_UNIT_COST, GATE_RADIUS } from "shared";
 import type { Camera } from "./Camera.js";
 
 const BUILDING_COLOR: Record<BuildingType, number> = {
@@ -40,7 +40,7 @@ export class BuildingRenderer {
       for (const offset of camera.tileOffsets(gate.x)) {
         const gx = gate.x + offset;
         const gy = gate.y;
-        const r  = 2_500; // GATE_RADIUS
+        const r  = GATE_RADIUS;
 
         // Background circle
         g.circle(gx, gy, r).fill({ color: 0x111133, alpha: 0.85 }).stroke({ color: 0x6666aa, alpha: 0.7, width: 25 });

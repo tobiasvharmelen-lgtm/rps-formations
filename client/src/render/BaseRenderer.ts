@@ -1,5 +1,5 @@
 import { Container, Graphics, Text } from "pixi.js";
-import { Base, PlayerId, MAP_WIDTH } from "shared";
+import { Base, PlayerId, MAP_WIDTH, BASE_CAPTURE_TICKS } from "shared";
 import type { Camera } from "./Camera.js";
 
 export class BaseRenderer {
@@ -50,6 +50,15 @@ export class BaseRenderer {
         g.rect(barX, barY, barW, barH).fill({ color: 0x222244 });
         g.rect(barX, barY, barW * (base.hp / base.maxHp), barH).fill({ color });
         g.rect(barX, barY, barW, barH).stroke({ color: 0x000000, alpha: 0.5, width: 4 });
+
+        // Capture progress bar (orange) — only shown when being contested
+        if (base.captureProgress > 0) {
+          const capY = barY + barH + 20;
+          const capH = 80;
+          g.rect(barX, capY, barW, capH).fill({ color: 0x222222 });
+          g.rect(barX, capY, barW * (base.captureProgress / BASE_CAPTURE_TICKS), capH).fill({ color: 0xff8800 });
+          g.rect(barX, capY, barW, capH).stroke({ color: 0x000000, alpha: 0.5, width: 4 });
+        }
       }
 
       // Label at canonical x (tile copy closest to camera center)

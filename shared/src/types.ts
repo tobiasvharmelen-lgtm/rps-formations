@@ -46,6 +46,7 @@ export const enum InputType {
   SetTowerType    = 7,
   SetZoneType     = 8,
   UpgradeBuilding = 9,
+  ContributeGate  = 10,
 }
 
 export const enum BuildingType {
@@ -88,6 +89,8 @@ export interface Unit {
   attackCooldown: number;
   targetId: number;
   slowed: boolean;
+  /** Queued waypoints for ctrl+right-click movement sequences */
+  waypointQueue?: { x: number; y: number }[];
 }
 
 export interface Base {
@@ -97,6 +100,8 @@ export interface Base {
   hp: number;
   maxHp: number;
   attackCooldown: number;
+  /** 0 to BASE_CAPTURE_TICKS; fills when enemy units are inside, drains when they leave */
+  captureProgress: number;
 }
 
 export interface Zone {
@@ -183,6 +188,7 @@ export interface PlayerInput {
   unitIds?: number[];
   destX?: number;
   destY?: number;
+  appendWaypoint?: boolean;
   // SpawnUnit
   spawnType?: UnitType;
   // MergeUnits
@@ -194,4 +200,6 @@ export interface PlayerInput {
   unitType?: UnitType;
   // SetZoneType
   zoneIndex?: number;
+  // ContributeGate
+  gateIndex?: number;
 }

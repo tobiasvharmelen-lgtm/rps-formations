@@ -1,6 +1,6 @@
-import { GameState, PlayerId } from "shared";
+import { GameState, PlayerId, Unit } from "shared";
 import {
-  UNIT_SPEED, UNIT_RADIUS, MAP_WIDTH, MAP_HEIGHT, getStat,
+  UNIT_SPEED, UNIT_RADIUS, UNIT_ATTACK_RANGE, MAP_WIDTH, MAP_HEIGHT, getStat,
   MIDDLE_BARRIER_Y,
   BARRIER_LEFT_START, BARRIER_LEFT_END,
   BARRIER_RIGHT_START, BARRIER_RIGHT_END,
@@ -20,6 +20,10 @@ const STOPPING_DISTANCE = 20;
 const SEPARATION_STRENGTH = 1.2;
 
 export function tickMovement(state: GameState, spatialHash: SpatialHash): void {
+  // Build a unit map for quick owner lookup during aggro checks
+  const unitMap = new Map<number, Unit>();
+  for (const u of state.units) unitMap.set(u.id, u);
+
   for (const unit of state.units) {
     const speed  = getStat(UNIT_SPEED,  unit.type, unit.tier);
     const radius = getStat(UNIT_RADIUS, unit.type, unit.tier);
@@ -33,11 +37,39 @@ export function tickMovement(state: GameState, spatialHash: SpatialHash): void {
     const dist = Math.sqrt(dx * dx + dy * dy);
 
     if (dist <= STOPPING_DISTANCE) {
-      unit.x  = unit.targetX;
-      unit.y  = unit.targetY;
-      unit.vx = 0;
-      unit.vy = 0;
-      continue;
+      // Pop next waypoint if queued
+      if (unit.waypointQueue && unit.waypointQueue.length > 0) {
+        const next = unit.waypointQueue.shift()!;
+        unit.targetX = next.x;
+        unit.targetY = next.y;
+        // Don't stop — fall through to seek this new target next tick
+      } else {
+        // At destination — look for nearby enemies to chase (aggro)
+        const attackRange = getStat(UNIT_ATTACK_RANGE, unit.type, unit.tier);
+        const aggroRange  = attackRange * 3;
+        const nearbyIds   = spatialHash.queryWrapped(unit.x, unit.y, aggroRange, MAP_WIDTH);
+        let closestEnemy: Unit | null = null;
+        let closestDist2  = Infinity;
+        for (const nid of nearbyIds) {
+          const n = unitMap.get(nid);
+          if (!n || n.owner === unit.owner) continue;
+          const ndx  = wrappedDx(n.x, unit.x);
+          const ndy  = n.y - unit.y;
+          const nd2  = ndx * ndx + ndy * ndy;
+          if (nd2 < closestDist2) { closestDist2 = nd2; closestEnemy = n; }
+        }
+        if (closestEnemy) {
+          unit.targetX = closestEnemy.x;
+          unit.targetY = closestEnemy.y;
+          // Fall through to seek the enemy this tick
+        } else {
+          unit.x  = unit.targetX;
+          unit.y  = unit.targetY;
+          unit.vx = 0;
+          unit.vy = 0;
+          continue;
+        }
+      }
     }
 
     let effectiveSpeed = speed;

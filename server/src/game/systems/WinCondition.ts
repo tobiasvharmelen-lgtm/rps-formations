@@ -1,4 +1,5 @@
 import { GameState, PlayerId, GamePhase, ZoneOwner } from "shared";
+import { BASE_CAPTURE_RANGE, BASE_CAPTURE_TICKS, MAP_WIDTH } from "shared";
 
 const ZONE_DOMINATION_TICKS = 20 * 30; // 30 seconds of full zone control
 
@@ -11,6 +12,13 @@ export function resetWinState(): void {
   p2DominationTicks = 0;
 }
 
+function wrappedDx(ax: number, bx: number): number {
+  let d = ax - bx;
+  if (d >  MAP_WIDTH / 2) d -= MAP_WIDTH;
+  if (d < -MAP_WIDTH / 2) d += MAP_WIDTH;
+  return d;
+}
+
 export function checkWin(state: GameState): void {
   if (state.phase !== GamePhase.Active) return;
 
@@ -20,6 +28,30 @@ export function checkWin(state: GameState): void {
       const winnerId = base.owner === PlayerId.One ? PlayerId.Two : PlayerId.One;
       state.phase = GamePhase.Ended;
       state.winnerId = winnerId;
+      return;
+    }
+  }
+
+  // Base capture: hold enemy base for 20 seconds to win
+  for (const base of state.bases) {
+    const enemyOwner = base.owner === PlayerId.One ? PlayerId.Two : PlayerId.One;
+    const captureSq = BASE_CAPTURE_RANGE * BASE_CAPTURE_RANGE;
+    const hasEnemy = state.units.some(u => {
+      if (u.owner !== enemyOwner) return false;
+      const dx = wrappedDx(u.x, base.x);
+      const dy = u.y - base.y;
+      return dx * dx + dy * dy <= captureSq;
+    });
+
+    if (hasEnemy) {
+      base.captureProgress = Math.min(BASE_CAPTURE_TICKS, base.captureProgress + 1);
+    } else {
+      base.captureProgress = Math.max(0, base.captureProgress - 0.5);
+    }
+
+    if (base.captureProgress >= BASE_CAPTURE_TICKS) {
+      state.phase = GamePhase.Ended;
+      state.winnerId = enemyOwner;
       return;
     }
   }

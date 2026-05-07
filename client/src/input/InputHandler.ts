@@ -2,7 +2,7 @@ import { Camera } from "../render/Camera.js";
 import { SelectionManager } from "./SelectionManager.js";
 import { CommandDispatcher } from "./CommandDispatcher.js";
 import { InputBackend } from "./InputBackend.js";
-import { UnitType, PlayerId, UNIT_RADIUS, getStat, Unit, BuildingType, MAP_WIDTH, Building, Zone, ZoneOwner } from "shared";
+import { UnitType, PlayerId, UNIT_RADIUS, getStat, Unit, BuildingType, MAP_WIDTH, Building, Zone, ZoneOwner, GATE_RADIUS } from "shared";
 
 /** Cycles Rock → Paper → Scissors → Off (null) → Rock */
 function cycleUnitType(current: UnitType | null): UnitType | undefined {
@@ -34,6 +34,8 @@ export class InputHandler {
 
   private mouseDownPos: { x: number; y: number } | null = null;
   private readonly DRAG_THRESHOLD = 6;
+  /** True after the first ctrl+right-click move; causes subsequent ctrl+clicks to append waypoints */
+  private ctrlWaypointActive = false;
 
   // Single-finger touch state
   private touchStart: { x: number; y: number } | null = null;
@@ -91,6 +93,8 @@ export class InputHandler {
     else this.commitClickSelect(e.clientX, e.clientY, additive);
     this.mouseDownPos = null;
     this.dragBox.active = false;
+    // Selection changed — reset waypoint session
+    this.ctrlWaypointActive = false;
   };
 
   private onRightClick = (e: MouseEvent): void => {
@@ -111,15 +115,28 @@ export class InputHandler {
         return;
       }
 
-      // Right-click on own captured zone → cycle its setType (R→P→S→Off→R)
+      // Right-click on own captured zone ICON (small center area) → cycle its setType
+      const ZONE_ICON_RADIUS = 350;
       const humanOwner = this.selection.humanPlayer === PlayerId.One ? ZoneOwner.Player1 : ZoneOwner.Player2;
       for (let zi = 0; zi < state.zones.length; zi++) {
         const zone: Zone = state.zones[zi];
         if (zone.owner !== humanOwner) continue;
         const dx = wrappedDx(zone.x, world.x);
         const dy = zone.y - world.y;
-        if (dx * dx + dy * dy < zone.radius * zone.radius) {
+        if (dx * dx + dy * dy < ZONE_ICON_RADIUS * ZONE_ICON_RADIUS) {
           this.dispatcher.setZoneType(zi, cycleUnitType(zone.setType ?? null));
+          return;
+        }
+      }
+
+      // Right-click on a gate → contribute selected units to unlock it
+      for (let gi = 0; gi < state.gates.length; gi++) {
+        const gate = state.gates[gi];
+        const dx = wrappedDx(gate.x, world.x);
+        const dy = gate.y - world.y;
+        if (dx * dx + dy * dy < GATE_RADIUS * GATE_RADIUS) {
+          this.dispatcher.contributeToGate(gi);
+          this.ctrlWaypointActive = false;
           return;
         }
       }
@@ -130,7 +147,15 @@ export class InputHandler {
       this.placingBuilding = null;
       return;
     }
-    this.dispatcher.moveSelected(world.x, world.y);
+
+    // Ctrl+right-click: first click sends a normal move, subsequent clicks append waypoints
+    if (e.ctrlKey) {
+      this.dispatcher.moveSelected(world.x, world.y, this.ctrlWaypointActive);
+      this.ctrlWaypointActive = true;
+    } else {
+      this.ctrlWaypointActive = false;
+      this.dispatcher.moveSelected(world.x, world.y, false);
+    }
   };
 
   private commitClickSelect(sx: number, sy: number, additive: boolean): void {
@@ -241,7 +266,7 @@ export class InputHandler {
       }
       e.preventDefault();
     }
-    else if (key === "escape") this.selection.clear();
+    else if (key === "escape") { this.selection.clear(); this.ctrlWaypointActive = false; }
   };
 
   private handleSpawn(type: UnitType, asEnemy: boolean): void {

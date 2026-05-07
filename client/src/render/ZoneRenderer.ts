@@ -78,7 +78,7 @@ export class ZoneRenderer {
       // setType icon label (only show for primary tile offset)
       if (zone.owner !== ZoneOwner.Neutral && zone.setType != null) {
         if (!this.iconLabels.has(zi)) {
-          const lbl = new Text({ text: "", style: { fill: 0xffffff, fontSize: 280, fontFamily: "monospace" } });
+          const lbl = new Text({ text: "", style: { fill: 0xffffff, fontSize: 700, fontFamily: "monospace", fontWeight: "bold" } });
           lbl.anchor.set(0.5);
           this.container.addChild(lbl);
           this.iconLabels.set(zi, lbl);
@@ -87,6 +87,8 @@ export class ZoneRenderer {
         lbl.visible = true;
         lbl.text = TYPE_ICONS[zone.setType as UnitType];
         const canonX = zone.x + Math.round((camera.x - zone.x) / MAP_WIDTH) * MAP_WIDTH;
+        // Background highlight so icon is legible over the zone fill
+        sg.circle(canonX, zone.y, 420).fill({ color: 0x000000, alpha: 0.45 });
         lbl.position.set(canonX, zone.y);
       } else {
         const lbl = this.iconLabels.get(zi);

@@ -35,8 +35,8 @@ export class CommandDispatcher {
     return true;
   }
 
-  /** Right-click move: send a single MoveUnits command with all selected unit IDs. */
-  moveSelected(destX: number, destY: number): boolean {
+  /** Right-click move: send a MoveUnits command. Pass append=true to queue a waypoint instead of replacing. */
+  moveSelected(destX: number, destY: number, append = false): boolean {
     const state = this.backend.getState();
     if (!state) return false;
 
@@ -45,7 +45,21 @@ export class CommandDispatcher {
       .map(u => u.id);
     if (ids.length === 0) return false;
 
-    this.backend.send({ type: InputType.MoveUnits, unitIds: ids, destX, destY });
+    this.backend.send({ type: InputType.MoveUnits, unitIds: ids, destX, destY, appendWaypoint: append || undefined });
+    return true;
+  }
+
+  /** Right-click on a gate: contribute selected units to unlock it. */
+  contributeToGate(gateIndex: number): boolean {
+    const state = this.backend.getState();
+    if (!state) return false;
+
+    const ids = state.units
+      .filter(u => this.selection.selectedIds.has(u.id) && u.owner === this.selection.humanPlayer)
+      .map(u => u.id);
+    if (ids.length === 0) return false;
+
+    this.backend.send({ type: InputType.ContributeGate, unitIds: ids, gateIndex });
     return true;
   }
 

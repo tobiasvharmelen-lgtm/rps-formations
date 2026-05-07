@@ -5,7 +5,7 @@ import {
   ZONE_RADIUS, MAP_WIDTH, MAP_HEIGHT, SPAWN_COST_T1, getStat,
   MERGE_COUNT, MERGE_RADIUS, BUILDING_STATS,
   GATE_X_LEFT, GATE_X_RIGHT, GATE_RADIUS, GATE_UNIT_COST, MIDDLE_BARRIER_Y,
-  BUILDING_UPGRADE_COSTS, BUILDING_UPGRADE_RADII,
+  BUILDING_UPGRADE_COSTS, BUILDING_UPGRADE_RADII, BASE_CAPTURE_TICKS,
 } from "shared";
 import { SpatialHash } from "./SpatialHash.js";
 import { tickEconomy } from "./systems/EconomySystem.js";
@@ -50,8 +50,8 @@ function makeInitialState(): GameState {
     ],
     units: [],
     bases: [
-      { owner: PlayerId.One, x: 0,       y: MAP_HEIGHT / 2, hp: BASE_HP, maxHp: BASE_HP, attackCooldown: 0 },
-      { owner: PlayerId.Two, x: 60_000,  y: MAP_HEIGHT / 2, hp: BASE_HP, maxHp: BASE_HP, attackCooldown: 0 },
+      { owner: PlayerId.One, x: 0,       y: MAP_HEIGHT / 2, hp: BASE_HP, maxHp: BASE_HP, attackCooldown: 0, captureProgress: 0 },
+      { owner: PlayerId.Two, x: 60_000,  y: MAP_HEIGHT / 2, hp: BASE_HP, maxHp: BASE_HP, attackCooldown: 0, captureProgress: 0 },
     ],
     zones: [
       { type: ZoneType.LeftTop,    x: 30_000, y: 4_000,              radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
@@ -121,6 +121,7 @@ export class GameSimulation {
       case InputType.SetTowerType:    this.setTowerType(playerId, input);    break;
       case InputType.SetZoneType:     this.setZoneType(playerId, input);     break;
       case InputType.UpgradeBuilding: this.upgradeBuilding(playerId, input); break;
+      case InputType.ContributeGate:  this.contributeGate(playerId, input);  break;
     }
   }
 
@@ -153,6 +154,7 @@ export class GameSimulation {
       attackCooldown: 0,
       targetId: 0,
       slowed: false,
+      waypointQueue: [],
     });
   }
 
@@ -160,6 +162,7 @@ export class GameSimulation {
     const ids   = input.unitIds ?? [];
     const destX = input.destX  ?? 0;
     const destY = input.destY  ?? 0;
+    const append = input.appendWaypoint === true;
 
     const units: Unit[] = [];
     for (const id of ids) {
@@ -174,8 +177,38 @@ export class GameSimulation {
     for (let i = 0; i < units.length; i++) {
       const u   = units[i];
       const off = formationSlot(i, maxRadius);
-      u.targetX = Math.max(0, Math.min(MAP_WIDTH,  destX + off.dx));
-      u.targetY = Math.max(0, Math.min(MAP_HEIGHT, destY + off.dy));
+      const wx  = Math.max(0, Math.min(MAP_WIDTH,  destX + off.dx));
+      const wy  = Math.max(0, Math.min(MAP_HEIGHT, destY + off.dy));
+      if (append) {
+        if (!u.waypointQueue) u.waypointQueue = [];
+        if (u.waypointQueue.length < 8) u.waypointQueue.push({ x: wx, y: wy });
+      } else {
+        u.waypointQueue = [];
+        u.targetX = wx;
+        u.targetY = wy;
+      }
+    }
+  }
+
+  private contributeGate(playerId: PlayerId, input: PlayerInput): void {
+    const gateIndex = input.gateIndex;
+    if (gateIndex === undefined || gateIndex < 0 || gateIndex >= this.state.gates.length) return;
+    const gate = this.state.gates[gateIndex];
+    const isP1 = playerId === PlayerId.One;
+    if (isP1 && gate.p1Open) return;
+    if (!isP1 && gate.p2Open) return;
+
+    const ids = new Set(input.unitIds ?? []);
+    const toRemove: number[] = [];
+    for (const u of this.state.units) {
+      if (u.owner !== playerId || !ids.has(u.id)) continue;
+      toRemove.push(u.id);
+      if (isP1) gate.p1Units++;
+      else       gate.p2Units++;
+    }
+    if (toRemove.length > 0) {
+      const removeSet = new Set(toRemove);
+      this.state.units = this.state.units.filter(u => !removeSet.has(u.id));
     }
   }
 
@@ -224,6 +257,7 @@ export class GameSimulation {
       attackCooldown: 0,
       targetId: 0,
       slowed: false,
+      waypointQueue: [],
     });
   }
 

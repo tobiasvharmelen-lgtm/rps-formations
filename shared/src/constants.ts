@@ -20,7 +20,7 @@ export const BARRIER_RIGHT_END   = 114_000; // barrier ends before P1 right home
 export const GATE_X_LEFT    = 30_000;  // left gate X
 export const GATE_X_RIGHT   = 90_000;  // right gate X
 export const GATE_HALF_WIDTH = 1_500;  // half-width of the passable gap when a gate is open
-export const GATE_RADIUS     = 2_500;  // radius of the gate circle (visual + unit contribution zone)
+export const GATE_RADIUS     = 1_800;  // radius of the gate circle (visual + unit contribution zone)
 export const GATE_UNIT_COST  = 50;     // units a player must contribute to open a gate
 
 // Home territory boundaries (for rendering — symmetric: P1 at seam, P2 at center)
@@ -45,6 +45,8 @@ export const BASE_HP = 10_000;
 export const BASE_ATTACK_RANGE = 1_500;
 export const BASE_DAMAGE = 20;
 export const BASE_ATTACK_COOLDOWN = 10; // ticks
+export const BASE_CAPTURE_RANGE = 2_500; // enemy units within this radius count as "in the base"
+export const BASE_CAPTURE_TICKS = 400;  // 20 seconds × 20 TPS to capture
 
 // ---- Unit stats by [type][tier] ----
 // All three unit types share the same base stats — RPS advantage is purely from multipliers.
@@ -62,9 +64,9 @@ export const UNIT_DAMAGE: readonly [number, number, number][] = [
 ] as const;
 
 export const UNIT_ATTACK_RANGE: readonly [number, number, number][] = [
-  [350, 400, 500],
-  [350, 400, 500],
-  [350, 400, 500],
+  [700, 800, 1000],
+  [700, 800, 1000],
+  [700, 800, 1000],
 ] as const;
 
 export const UNIT_ATTACK_COOLDOWN: readonly [number, number, number][] = [
