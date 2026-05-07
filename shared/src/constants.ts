@@ -6,10 +6,12 @@ export const TICK_MS = 1000 / TICK_RATE;
 export const COUNTDOWN_TICKS = 3 * TICK_RATE; // 3-second countdown
 
 // ---- Map ----
-export const MAP_WIDTH = 24_000;       // world-mm
+export const MAP_WIDTH = 120_000;       // world-mm (expanded for larger tactical field)
 export const MAP_HEIGHT = 16_000;
-export const VERT_BARRIER_XS = [3_000, 9_000, 15_000, 21_000] as const; // x positions of vertical walls
-export const LANE_GAP_HEIGHT = 5_000;  // top lane: y < LANE_GAP_HEIGHT; bottom: y > MAP_HEIGHT - LANE_GAP_HEIGHT
+// Horizontal barriers separate top and bottom lanes
+export const TOP_LANE_BARRIER_Y = 6_000;      // barrier separating top lane from middle
+export const BOTTOM_LANE_BARRIER_Y = 10_000;  // barrier separating bottom lane from middle
+export const LANE_GAP_HEIGHT = 5_000;  // legacy - keep for zone positioning (top lane: y < 5k, bottom: y > 11k)
 
 // ---- Economy ----
 export const STARTING_RESOURCES = 500; // shared gold pool

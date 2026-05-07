@@ -150,6 +150,7 @@ export interface GameState {
   mergeEvents: MergeEvent[];
   buildings: Building[];
   terrain: Terrain[];
+  gatesOpen: [boolean, boolean]; // gate state for middle area 1 and 2
 }
 
 // ---- Network inputs ----

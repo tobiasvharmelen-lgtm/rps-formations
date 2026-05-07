@@ -1,13 +1,14 @@
 import { Container, Graphics } from "pixi.js";
-import { MAP_WIDTH, MAP_HEIGHT, VERT_BARRIER_XS, LANE_GAP_HEIGHT } from "shared";
+import { MAP_WIDTH, MAP_HEIGHT, TOP_LANE_BARRIER_Y, BOTTOM_LANE_BARRIER_Y } from "shared";
 
 const TILE_RADIUS = 3;
 
-// P1 home: x in [21000, 24000] and [0, 3000] (wraps around seam at 0)
-// P2 home: x in [9000, 15000]
-const P1_HOME_RIGHT_START = VERT_BARRIER_XS[3]; // 21000
-const P2_HOME_START       = VERT_BARRIER_XS[1]; // 9000
-const P2_HOME_END         = VERT_BARRIER_XS[2]; // 15000
+// P1 home: x in [0, 12000] and [108000, 120000] (wraps around seam)
+// P2 home: x in [60000, 72000]
+const P1_HOME_END         = 12_000;
+const P1_HOME_RIGHT_START = 108_000;
+const P2_HOME_START       = 60_000;
+const P2_HOME_END         = 72_000;
 const HOME_ALPHA          = 0.06;
 
 export class MapRenderer {
@@ -42,14 +43,14 @@ export class MapRenderer {
       // Map background
       g.rect(ox, 0, MAP_WIDTH, MAP_HEIGHT).fill({ color: 0x16162a });
 
-      // P1 home: right portion of tile (x=21000 to 24000) — red tint
+      // P1 home: left portion of tile (x=0 to 12000) — red tint
+      g.rect(ox, 0, P1_HOME_END, MAP_HEIGHT)
+        .fill({ color: 0xe74c3c, alpha: HOME_ALPHA });
+      // P1 home: right portion of tile (x=108000 to 120000) — red tint
       g.rect(ox + P1_HOME_RIGHT_START, 0, MAP_WIDTH - P1_HOME_RIGHT_START, MAP_HEIGHT)
         .fill({ color: 0xe74c3c, alpha: HOME_ALPHA });
-      // P1 home: left portion of tile (x=0 to 3000) — red tint
-      g.rect(ox, 0, VERT_BARRIER_XS[0], MAP_HEIGHT)
-        .fill({ color: 0xe74c3c, alpha: HOME_ALPHA });
 
-      // P2 home: x=9000 to 15000 — blue tint
+      // P2 home: x=60000 to 72000 — blue tint
       g.rect(ox + P2_HOME_START, 0, P2_HOME_END - P2_HOME_START, MAP_HEIGHT)
         .fill({ color: 0x3498db, alpha: HOME_ALPHA });
 
@@ -73,15 +74,28 @@ export class MapRenderer {
     const g = this.barrierGfx;
     g.clear();
 
-    const y0 = LANE_GAP_HEIGHT;
-    const y1 = MAP_HEIGHT - LANE_GAP_HEIGHT;
-
     for (let n = -TILE_RADIUS; n <= TILE_RADIUS; n++) {
       const ox = n * MAP_WIDTH;
-      for (const barrierX of VERT_BARRIER_XS) {
-        const bx = ox + barrierX;
-        g.moveTo(bx, y0).lineTo(bx, y1)
-          .stroke({ color: 0xaaaaaa, alpha: 0.85, width: 50 });
+
+      // Top lane barrier (separates top lane from middle)
+      g.moveTo(ox, TOP_LANE_BARRIER_Y).lineTo(ox + MAP_WIDTH, TOP_LANE_BARRIER_Y)
+        .stroke({ color: 0xaaaaaa, alpha: 0.85, width: 50 });
+
+      // Bottom lane barrier (separates bottom lane from middle)
+      g.moveTo(ox, BOTTOM_LANE_BARRIER_Y).lineTo(ox + MAP_WIDTH, BOTTOM_LANE_BARRIER_Y)
+        .stroke({ color: 0xaaaaaa, alpha: 0.85, width: 50 });
+
+      // Gates: small openings in the barriers for lane switching
+      // Gate 1 at x=30000, Gate 2 at x=90000, with +/- 2000mm radius
+      const gateRadius = 2_000;
+      const gates = [30_000, 90_000];
+      for (const gateX of gates) {
+        const bx = ox + gateX;
+        // Render gate as a slightly different color (lighter) to indicate it's closeable
+        g.moveTo(bx - gateRadius, TOP_LANE_BARRIER_Y).lineTo(bx + gateRadius, TOP_LANE_BARRIER_Y)
+          .stroke({ color: 0x888888, alpha: 0.5, width: 50 });
+        g.moveTo(bx - gateRadius, BOTTOM_LANE_BARRIER_Y).lineTo(bx + gateRadius, BOTTOM_LANE_BARRIER_Y)
+          .stroke({ color: 0x888888, alpha: 0.5, width: 50 });
       }
     }
   }

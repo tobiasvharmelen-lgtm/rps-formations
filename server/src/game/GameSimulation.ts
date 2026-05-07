@@ -47,24 +47,25 @@ function makeInitialState(): GameState {
     ],
     units: [],
     bases: [
-      { owner: PlayerId.One, x: 0,              y: MAP_HEIGHT / 2, hp: BASE_HP, maxHp: BASE_HP, attackCooldown: 0 },
-      { owner: PlayerId.Two, x: MAP_WIDTH / 2,  y: MAP_HEIGHT / 2, hp: BASE_HP, maxHp: BASE_HP, attackCooldown: 0 },
+      { owner: PlayerId.One, x: 6_000,           y: MAP_HEIGHT / 2, hp: BASE_HP, maxHp: BASE_HP, attackCooldown: 0 },
+      { owner: PlayerId.Two, x: 60_000,          y: MAP_HEIGHT / 2, hp: BASE_HP, maxHp: BASE_HP, attackCooldown: 0 },
     ],
     zones: [
-      { type: ZoneType.LeftTop,    x: MAP_WIDTH / 4,       y: 2_500,                  radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
-      { type: ZoneType.LeftBottom, x: MAP_WIDTH / 4,       y: MAP_HEIGHT - 2_500,     radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
-      { type: ZoneType.RightTop,   x: (MAP_WIDTH * 3) / 4, y: 2_500,                  radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
-      { type: ZoneType.RightBottom,x: (MAP_WIDTH * 3) / 4, y: MAP_HEIGHT - 2_500,     radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
+      { type: ZoneType.LeftTop,    x: 30_000,      y: 2_500,                  radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
+      { type: ZoneType.LeftBottom, x: 30_000,      y: MAP_HEIGHT - 2_500,     radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
+      { type: ZoneType.RightTop,   x: 90_000,      y: 2_500,                  radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
+      { type: ZoneType.RightBottom,x: 90_000,      y: MAP_HEIGHT - 2_500,     radius: ZONE_RADIUS, owner: 0, captureProgress: 0 },
     ],
     winnerId: 0,
     mergeEvents: [],
     buildings: [
-      { id: nextMergedUnitId++, owner: PlayerId.Neutral, type: BuildingType.SwapTower, x: MAP_WIDTH / 4,       y: 2_500,              hp: 99_999, maxHp: 99_999, setType: UnitType.Rock, conversionRadius: BUILDING_STATS[BuildingType.SwapTower].conversionRadius },
-      { id: nextMergedUnitId++, owner: PlayerId.Neutral, type: BuildingType.SwapTower, x: MAP_WIDTH / 4,       y: MAP_HEIGHT - 2_500, hp: 99_999, maxHp: 99_999, setType: UnitType.Rock, conversionRadius: BUILDING_STATS[BuildingType.SwapTower].conversionRadius },
-      { id: nextMergedUnitId++, owner: PlayerId.Neutral, type: BuildingType.SwapTower, x: (MAP_WIDTH * 3) / 4, y: 2_500,              hp: 99_999, maxHp: 99_999, setType: UnitType.Rock, conversionRadius: BUILDING_STATS[BuildingType.SwapTower].conversionRadius },
-      { id: nextMergedUnitId++, owner: PlayerId.Neutral, type: BuildingType.SwapTower, x: (MAP_WIDTH * 3) / 4, y: MAP_HEIGHT - 2_500, hp: 99_999, maxHp: 99_999, setType: UnitType.Rock, conversionRadius: BUILDING_STATS[BuildingType.SwapTower].conversionRadius },
+      { id: nextMergedUnitId++, owner: PlayerId.Neutral, type: BuildingType.SwapTower, x: 30_000, y: 2_500,              hp: 99_999, maxHp: 99_999, setType: UnitType.Rock, conversionRadius: BUILDING_STATS[BuildingType.SwapTower].conversionRadius },
+      { id: nextMergedUnitId++, owner: PlayerId.Neutral, type: BuildingType.SwapTower, x: 30_000, y: MAP_HEIGHT - 2_500, hp: 99_999, maxHp: 99_999, setType: UnitType.Rock, conversionRadius: BUILDING_STATS[BuildingType.SwapTower].conversionRadius },
+      { id: nextMergedUnitId++, owner: PlayerId.Neutral, type: BuildingType.SwapTower, x: 90_000, y: 2_500,              hp: 99_999, maxHp: 99_999, setType: UnitType.Rock, conversionRadius: BUILDING_STATS[BuildingType.SwapTower].conversionRadius },
+      { id: nextMergedUnitId++, owner: PlayerId.Neutral, type: BuildingType.SwapTower, x: 90_000, y: MAP_HEIGHT - 2_500, hp: 99_999, maxHp: 99_999, setType: UnitType.Rock, conversionRadius: BUILDING_STATS[BuildingType.SwapTower].conversionRadius },
     ],
     terrain: [],
+    gatesOpen: [false, false], // both gates start closed
   };
 }
 

@@ -1,5 +1,5 @@
 import { GameState } from "shared";
-import { UNIT_SPEED, UNIT_RADIUS, MAP_WIDTH, MAP_HEIGHT, VERT_BARRIER_XS, LANE_GAP_HEIGHT, getStat } from "shared";
+import { UNIT_SPEED, UNIT_RADIUS, MAP_WIDTH, MAP_HEIGHT, TOP_LANE_BARRIER_Y, BOTTOM_LANE_BARRIER_Y, getStat } from "shared";
 import { SpatialHash } from "../SpatialHash.js";
 
 function wrappedDx(ax: number, bx: number): number {
@@ -73,24 +73,29 @@ export function tickMovement(state: GameState, spatialHash: SpatialHash): void {
     }
 
     const prevX = unit.x;
+    const prevY = unit.y;
     unit.x += vx;
     unit.y += vy;
 
-    // ---- Barrier collision (4 vertical walls with top/bottom lane gaps) ----
+    // ---- Horizontal lane barriers (top and bottom) with gates for lane switching ----
     {
-      const inBlocked = unit.y > LANE_GAP_HEIGHT && unit.y < MAP_HEIGHT - LANE_GAP_HEIGHT;
-      if (inBlocked) {
-        // Normalize prevX to [0, MAP_WIDTH) for crossing detection
-        const px = prevX < 0 ? prevX + MAP_WIDTH : prevX >= MAP_WIDTH ? prevX - MAP_WIDTH : prevX;
-        for (const barrierX of VERT_BARRIER_XS) {
-          const crossRight = px < barrierX && unit.x >= barrierX;
-          const crossLeft  = px > barrierX && unit.x <= barrierX;
-          if (crossRight || crossLeft) {
-            unit.x = prevX;
-            vx = 0;
-            if (crossRight) unit.targetX = barrierX - radius;
-            else            unit.targetX = barrierX + radius;
-            break;
+      // Detect crossing from lane to middle or middle to lane
+      const crossedTopBarrier = prevY <= TOP_LANE_BARRIER_Y && unit.y > TOP_LANE_BARRIER_Y;
+      const crossedBottomBarrier = prevY >= BOTTOM_LANE_BARRIER_Y && unit.y < BOTTOM_LANE_BARRIER_Y;
+
+      if (crossedTopBarrier || crossedBottomBarrier) {
+        // Determine which gate to check based on unit's x position
+        const gateIndex = unit.x < 60_000 ? 0 : 1; // gate 1 at x=30k, gate 2 at x=90k
+
+        if (!state.gatesOpen[gateIndex]) {
+          // Gate is closed - block the movement
+          unit.y = prevY;
+          vy = 0;
+          // Adjust target to stay on the correct side of the barrier
+          if (crossedTopBarrier) {
+            unit.targetY = Math.min(unit.targetY, TOP_LANE_BARRIER_Y - 100);
+          } else {
+            unit.targetY = Math.max(unit.targetY, BOTTOM_LANE_BARRIER_Y + 100);
           }
         }
       }

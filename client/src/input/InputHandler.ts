@@ -132,16 +132,26 @@ export class InputHandler {
     if (!state) return;
     const start = this.camera.screenToWorldNormalized(this.dragBox.startScreen.x, this.dragBox.startScreen.y);
     const end = this.camera.screenToWorldNormalized(this.dragBox.endScreen.x, this.dragBox.endScreen.y);
-    const minX = Math.min(start.x, end.x);
-    const maxX = Math.max(start.x, end.x);
     const minY = Math.min(start.y, end.y);
     const maxY = Math.max(start.y, end.y);
+
+    // Handle cylinder map wrapping: check if the box crosses the x=0/MAP_WIDTH boundary
+    let minX = Math.min(start.x, end.x);
+    let maxX = Math.max(start.x, end.x);
+    const isWrappingBox = maxX - minX > MAP_WIDTH / 2;
 
     const ids: number[] = [];
     for (const u of state.units) {
       if (u.owner !== this.selection.humanPlayer) continue;
-      if (u.x < minX || u.x > maxX) continue;
       if (u.y < minY || u.y > maxY) continue;
+
+      // For wrapping boxes, check if unit is in either region (left or right of wrap)
+      if (isWrappingBox) {
+        if (!(u.x >= maxX || u.x <= minX)) continue;
+      } else {
+        if (!(u.x >= minX && u.x <= maxX)) continue;
+      }
+
       ids.push(u.id);
     }
     if (additive) this.selection.addOrToggle(ids, "add");
